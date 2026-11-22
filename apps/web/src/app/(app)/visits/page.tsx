@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -68,7 +69,10 @@ export default function VisitsPage() {
             <div key={visit.id} className="flex items-center justify-between rounded-md border border-border p-3">
               <div>
                 <p className="font-medium">
-                  {visit.patient?.fullName} <span className="text-muted-foreground">({visit.visitNumber})</span>
+                  <Link href={`/visits/${visit.id}`} className="hover:underline">
+                    {visit.patient?.fullName}
+                  </Link>{" "}
+                  <span className="text-muted-foreground">({visit.visitNumber})</span>
                 </p>
                 <p className="text-sm text-muted-foreground">
                   Checked in {formatIstTime(visit.checkedInAt)}

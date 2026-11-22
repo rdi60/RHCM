@@ -22,7 +22,9 @@ export default async function globalSetup() {
         staff_entity_assignments, doctor_availability, doctor_leave, clinic_resources,
         entity_settings, doctors, staff, roles, permissions, users, entities,
         consent_records, patient_entity_links, temporary_registrations, patients,
-        uhid_counter, visits, appointments
+        uhid_counter, visits, appointments, treatment_catalog, dental_chart_entries,
+        diagnoses, treatment_plans, treatment_plan_items, treatment_sessions,
+        treatment_session_assistants, clinical_notes, prescriptions
       RESTART IDENTITY CASCADE;
     `,
   });

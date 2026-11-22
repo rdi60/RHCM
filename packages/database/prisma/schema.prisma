@@ -43,6 +43,9 @@ model Entity {
   consentRecords         ConsentRecord[]
   appointments           Appointment[]
   visits                 Visit[]
+  treatmentPlans         TreatmentPlan[]
+  treatmentSessions      TreatmentSession[]
+  prescriptions          Prescription[]
 
   @@map("entities")
 }
@@ -137,6 +140,9 @@ model User {
   consentsCaptured              ConsentRecord[]
   temporaryRegistrationsCreated TemporaryRegistration[]
   appointmentsCreated           Appointment[]
+  dentalChartEntriesRecorded    DentalChartEntry[]
+  treatmentPlansCreated         TreatmentPlan[]
+  clinicalNotesAuthored         ClinicalNote[]
 
   @@map("users")
 }
@@ -225,6 +231,12 @@ model Doctor {
   preferredForTempRegistrations TemporaryRegistration[]
   appointments                  Appointment[]
   visits                        Visit[]
+  diagnosesGiven                Diagnosis[]              @relation("DiagnosisDiagnosedBy")
+  planItemsPlanned              TreatmentPlanItem[]      @relation("PlanItemPlannedDoctor")
+  sessionsPlanned               TreatmentSession[]       @relation("SessionPlannedBy")
+  sessionsAssigned              TreatmentSession[]       @relation("SessionAssignedTo")
+  sessionsPerformed             TreatmentSession[]       @relation("SessionPerformedBy")
+  prescriptions                 Prescription[]
 
   @@map("doctors")
 }
@@ -254,7 +266,8 @@ model Staff {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  assignments StaffEntityAssignment[]
+  assignments                 StaffEntityAssignment[]
+  treatmentSessionAssistances TreatmentSessionAssistant[]
 
   @@map("staff")
 }
@@ -413,6 +426,11 @@ model Patient {
   temporaryRegistrations TemporaryRegistration[]
   appointments           Appointment[]
   visits                 Visit[]
+  diagnoses              Diagnosis[]
+  dentalChartEntries     DentalChartEntry[]
+  treatmentPlans         TreatmentPlan[]
+  clinicalNotes          ClinicalNote[]
+  prescriptions          Prescription[]
 
   @@index([fullName])
   @@index([phone])
@@ -612,13 +630,279 @@ model Visit {
   chiefComplaint String?
   status         VisitStatus @default(WAITING)
 
+  // Stage 4: the clinical summary of this encounter. Detailed diagnoses,
+  // dental-chart entries, treatment plans/sessions, notes and
+  // prescriptions live in their own append-only-friendly tables below;
+  // these four fields are the short free-text summary shown on the
+  // visit/dashboard, filled in as the encounter wraps up.
+  clinicalFindings             String?
+  diagnosisSummary             String?
+  treatmentAdvice              String?
+  nextAppointmentRecommendedAt DateTime?
+
   checkedInAt  DateTime  @default(now())
   checkedOutAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  diagnoses          Diagnosis[]
+  dentalChartEntries DentalChartEntry[]
+  treatmentPlans     TreatmentPlan[]
+  treatmentSessions  TreatmentSession[]
+  clinicalNotes      ClinicalNote[]
+  prescriptions      Prescription[]
+
   @@unique([entityId, visitNumber])
   @@index([entityId, status])
   @@map("visits")
+}
+
+// ---------------------------------------------------------------------------
+// Clinical module (Stage 4)
+// ---------------------------------------------------------------------------
+
+/// Global procedure master (not entity-scoped) — see
+/// docs/ARCHITECTURE.md Section 5.9 for why per-entity *pricing* is a
+/// separate override table added in a later stage rather than forking
+/// this catalog.
+model TreatmentCatalog {
+  id                     String  @id @default(cuid())
+  code                   String  @unique
+  name                   String
+  category               String
+  defaultDurationMinutes Int     @default(30)
+  defaultPrice           Decimal @default(0) @db.Decimal(12, 2)
+  isActive               Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  planItems TreatmentPlanItem[]
+
+  @@map("treatment_catalog")
+}
+
+enum Dentition {
+  PERMANENT
+  DECIDUOUS
+}
+
+/// Append-only: a correction is a new row, never an UPDATE, so the full
+/// history for a tooth/surface is reconstructable. The odontogram the UI
+/// renders is just "the latest row per (patient, toothNumber, surface)".
+model DentalChartEntry {
+  id String @id @default(cuid())
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  toothNumber Int // FDI notation
+  dentition   Dentition @default(PERMANENT)
+  surface     String? // e.g. "M", "O", "D", "B", "L"; null = whole-tooth condition
+  condition   String // free text (e.g. "Caries", "Filled", "Crown", "Missing", "Healthy") — deliberately not an enum, dental conditions vary too much to fix a closed list
+  status      String? // e.g. "active", "resolved", "planned"
+
+  recordedAt   DateTime @default(now())
+  recordedById String?
+  recordedBy   User?    @relation(fields: [recordedById], references: [id], onDelete: SetNull)
+  visitId      String?
+  visit        Visit?   @relation(fields: [visitId], references: [id], onDelete: SetNull)
+
+  @@index([patientId, toothNumber])
+  @@map("dental_chart_entries")
+}
+
+model Diagnosis {
+  id String @id @default(cuid())
+
+  visitId   String
+  visit     Visit   @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  toothNumber   Int?
+  diagnosisCode String?
+  description   String
+
+  diagnosedById String?
+  diagnosedBy   Doctor?  @relation("DiagnosisDiagnosedBy", fields: [diagnosedById], references: [id], onDelete: SetNull)
+  diagnosedAt   DateTime @default(now())
+
+  @@index([patientId])
+  @@index([visitId])
+  @@map("diagnoses")
+}
+
+enum TreatmentPlanStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model TreatmentPlan {
+  id String @id @default(cuid())
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  entityId  String
+  entity    Entity  @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  visitId   String?
+  visit     Visit?  @relation(fields: [visitId], references: [id], onDelete: SetNull)
+
+  status TreatmentPlanStatus @default(DRAFT)
+
+  createdById String?
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items TreatmentPlanItem[]
+
+  @@index([patientId])
+  @@index([entityId])
+  @@map("treatment_plans")
+}
+
+enum TreatmentPlanItemStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model TreatmentPlanItem {
+  id String @id @default(cuid())
+
+  treatmentPlanId String
+  treatmentPlan   TreatmentPlan @relation(fields: [treatmentPlanId], references: [id], onDelete: Cascade)
+
+  toothNumber        Int?
+  treatmentCatalogId String
+  treatmentCatalog   TreatmentCatalog @relation(fields: [treatmentCatalogId], references: [id], onDelete: Restrict)
+
+  plannedDoctorId String?
+  plannedDoctor   Doctor? @relation("PlanItemPlannedDoctor", fields: [plannedDoctorId], references: [id], onDelete: SetNull)
+
+  quantity      Int                     @default(1)
+  estimatedCost Decimal                 @default(0) @db.Decimal(12, 2)
+  status        TreatmentPlanItemStatus @default(PLANNED)
+  sortOrder     Int                     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions TreatmentSession[]
+
+  @@index([treatmentPlanId])
+  @@map("treatment_plan_items")
+}
+
+enum TreatmentSessionStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+/// The "Treatment ID" from the spec. A single TreatmentPlanItem (e.g. "Root
+/// Canal, tooth 36") fans out into N of these over time, supporting
+/// multi-session procedures.
+model TreatmentSession {
+  id String @id @default(cuid())
+
+  treatmentPlanItemId String
+  treatmentPlanItem   TreatmentPlanItem @relation(fields: [treatmentPlanItemId], references: [id], onDelete: Cascade)
+  visitId             String?
+  visit               Visit?            @relation(fields: [visitId], references: [id], onDelete: SetNull)
+  entityId            String
+  entity              Entity            @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  toothNumber   Int?
+  procedureCode String?
+
+  plannedByDoctorId   String?
+  plannedByDoctor     Doctor? @relation("SessionPlannedBy", fields: [plannedByDoctorId], references: [id], onDelete: SetNull)
+  assignedDoctorId    String?
+  assignedDoctor      Doctor? @relation("SessionAssignedTo", fields: [assignedDoctorId], references: [id], onDelete: SetNull)
+  performedByDoctorId String?
+  performedByDoctor   Doctor? @relation("SessionPerformedBy", fields: [performedByDoctorId], references: [id], onDelete: SetNull)
+
+  plannedDate DateTime?              @db.Date
+  actualDate  DateTime?              @db.Date
+  status      TreatmentSessionStatus @default(PLANNED)
+
+  estimatedCost      Decimal  @default(0) @db.Decimal(12, 2)
+  actualBilledAmount Decimal? @db.Decimal(12, 2)
+  clinicalRemarks    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assistants TreatmentSessionAssistant[]
+
+  @@index([treatmentPlanItemId])
+  @@index([entityId])
+  @@map("treatment_sessions")
+}
+
+model TreatmentSessionAssistant {
+  treatmentSessionId String
+  treatmentSession   TreatmentSession @relation(fields: [treatmentSessionId], references: [id], onDelete: Cascade)
+  staffId            String
+  staff              Staff            @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@id([treatmentSessionId, staffId])
+  @@map("treatment_session_assistants")
+}
+
+/// Append-only for medico-legal integrity: a correction is a new row
+/// linked via supersedesNoteId (an addendum), never an UPDATE to body.
+model ClinicalNote {
+  id String @id @default(cuid())
+
+  visitId   String
+  visit     Visit   @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  authoredById String?
+  authoredBy   User?    @relation(fields: [authoredById], references: [id], onDelete: SetNull)
+  authoredAt   DateTime @default(now())
+
+  noteType String @default("general")
+  body     String
+
+  isAddendum       Boolean        @default(false)
+  supersedesNoteId String?
+  supersedesNote   ClinicalNote?  @relation("NoteAddendum", fields: [supersedesNoteId], references: [id])
+  addenda          ClinicalNote[] @relation("NoteAddendum")
+
+  @@index([patientId])
+  @@index([visitId])
+  @@map("clinical_notes")
+}
+
+model Prescription {
+  id String @id @default(cuid())
+
+  visitId   String
+  visit     Visit   @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  entityId  String
+  entity    Entity  @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  prescribedById String?
+  prescribedBy   Doctor?  @relation(fields: [prescribedById], references: [id], onDelete: SetNull)
+  prescribedAt   DateTime @default(now())
+
+  // [{ drugName, dosage, frequency, durationDays, instructions }]
+  itemsJson Json
+  notes     String?
+
+  @@index([patientId])
+  @@map("prescriptions")
 }

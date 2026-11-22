@@ -12,6 +12,7 @@ import { StaffModule } from "./staff/staff.module";
 import { PatientsModule } from "./patients/patients.module";
 import { AppointmentsModule } from "./appointments/appointments.module";
 import { VisitsModule } from "./visits/visits.module";
+import { ClinicalModule } from "./clinical/clinical.module";
 import { SessionAuthGuard } from "./common/guards/session-auth.guard";
 import { PermissionsGuard } from "./common/guards/permissions.guard";
 
@@ -29,6 +30,7 @@ import { PermissionsGuard } from "./common/guards/permissions.guard";
     PatientsModule,
     AppointmentsModule,
     VisitsModule,
+    ClinicalModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

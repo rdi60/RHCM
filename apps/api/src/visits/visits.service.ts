@@ -5,6 +5,7 @@ import { nextVisitNumber, type PrismaClient, type Prisma } from "@rhcm/database"
 import { istToUtc, addMinutes } from "../common/time/ist";
 import type { UpdateVisitStatusDto } from "./dto/update-visit-status.dto";
 import type { AssignVisitDto } from "./dto/assign-visit.dto";
+import type { UpdateVisitClinicalDto } from "./dto/update-visit-clinical.dto";
 
 type VisitStatus = "WAITING" | "IN_TREATMENT" | "COMPLETED" | "CANCELLED";
 
@@ -48,9 +49,10 @@ export class VisitsService {
     });
   }
 
-  async listForEntity(entityId: string, opts: { status?: string; date?: string }) {
+  async listForEntity(entityId: string, opts: { status?: string; date?: string; patientId?: string }) {
     const where: any = { entityId };
     if (opts.status) where.status = opts.status;
+    if (opts.patientId) where.patientId = opts.patientId;
     if (opts.date) {
       const dayStart = istToUtc(opts.date, "00:00");
       const dayEnd = addMinutes(dayStart, 24 * 60);
@@ -63,7 +65,7 @@ export class VisitsService {
         doctor: { select: { id: true, fullName: true } },
         resource: { select: { id: true, type: true, number: true, label: true } },
       },
-      orderBy: { checkedInAt: "asc" },
+      orderBy: { checkedInAt: "asc" }, // Waiting List wants oldest-first (FIFO); callers wanting newest-first (e.g. patient history) can reverse client-side.
     });
   }
 
@@ -145,5 +147,27 @@ export class VisitsService {
     });
     if (!visit) throw new NotFoundException("Visit not found for this entity");
     return visit;
+  }
+
+  async updateClinical(id: string, dto: UpdateVisitClinicalDto, actorUserId: string) {
+    await this.getOwn(id, dto.entityId);
+    const updated = await this.prisma.client.visit.update({
+      where: { id },
+      data: {
+        chiefComplaint: dto.chiefComplaint,
+        clinicalFindings: dto.clinicalFindings,
+        diagnosisSummary: dto.diagnosisSummary,
+        treatmentAdvice: dto.treatmentAdvice,
+        nextAppointmentRecommendedAt: dto.nextAppointmentRecommendedAt ? new Date(dto.nextAppointmentRecommendedAt) : undefined,
+      },
+    });
+    await this.audit.record({
+      actorUserId,
+      entityId: dto.entityId,
+      action: "visit.clinical_updated",
+      resourceType: "visit",
+      resourceId: id,
+    });
+    return updated;
   }
 }

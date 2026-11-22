@@ -441,6 +441,178 @@ async function main() {
 
   console.log("Seeded synthetic appointments (Clinic chair + OT, Trust chair) and one in-progress visit.");
 
+  // --- Clinical module (Stage 4) --------------------------------------------
+  const TREATMENT_CATALOG: Array<{ code: string; name: string; category: string; durationMinutes: number; price: number }> = [
+    { code: "CONS-GEN", name: "General Consultation", category: "Consultation", durationMinutes: 15, price: 300 },
+    { code: "SCALE-POL", name: "Scaling & Polishing", category: "Preventive", durationMinutes: 30, price: 1200 },
+    { code: "FILL-COMP", name: "Composite Filling", category: "Restorative", durationMinutes: 30, price: 1800 },
+    { code: "RCT-SINGLE", name: "Root Canal Treatment (single canal)", category: "Endodontics", durationMinutes: 60, price: 5000 },
+    { code: "RCT-MULTI", name: "Root Canal Treatment (multi canal)", category: "Endodontics", durationMinutes: 90, price: 8000 },
+    { code: "CROWN-PFM", name: "Crown (PFM)", category: "Prosthodontics", durationMinutes: 45, price: 6000 },
+    { code: "EXTRACTION", name: "Simple Extraction", category: "Oral Surgery", durationMinutes: 30, price: 1500 },
+    { code: "EXTRACT-SURG", name: "Surgical Extraction", category: "Oral Surgery", durationMinutes: 60, price: 4000 },
+    { code: "IMPLANT", name: "Dental Implant", category: "Implantology", durationMinutes: 90, price: 35000 },
+    { code: "ORTHO-CONSULT", name: "Orthodontic Consultation", category: "Orthodontics", durationMinutes: 30, price: 500 },
+    { code: "WHITENING", name: "Teeth Whitening", category: "Cosmetic", durationMinutes: 45, price: 4500 },
+    { code: "XRAY-IOPA", name: "Intraoral X-Ray (IOPA)", category: "Diagnostic", durationMinutes: 10, price: 250 },
+  ];
+  const catalogByCode: Record<string, Awaited<ReturnType<typeof prisma.treatmentCatalog.upsert>>> = {};
+  for (const t of TREATMENT_CATALOG) {
+    catalogByCode[t.code] = await prisma.treatmentCatalog.upsert({
+      where: { code: t.code },
+      update: { name: t.name, category: t.category, defaultDurationMinutes: t.durationMinutes, defaultPrice: t.price },
+      create: {
+        code: t.code,
+        name: t.name,
+        category: t.category,
+        defaultDurationMinutes: t.durationMinutes,
+        defaultPrice: t.price,
+      },
+    });
+  }
+
+  // A completed encounter for Ravi to hang clinical history off of.
+  let raviVisit = await prisma.visit.findFirst({
+    where: { entityId: entities.CLINIC.id, patientId: ravi.id, status: "COMPLETED" },
+  });
+  if (!raviVisit) {
+    const visitNumber = await nextVisitNumber(prisma, entities.CLINIC.id);
+    raviVisit = await prisma.visit.create({
+      data: {
+        visitNumber,
+        entityId: entities.CLINIC.id,
+        patientId: ravi.id,
+        doctorId: doctor.id,
+        resourceId: clinicChair3.id,
+        chiefComplaint: "Tooth pain, lower right molar",
+        status: "COMPLETED",
+        clinicalFindings: "Deep caries on tooth 46, mild tenderness on percussion.",
+        diagnosisSummary: "Irreversible pulpitis, tooth 46.",
+        treatmentAdvice: "Root canal treatment recommended, followed by crown.",
+        checkedOutAt: new Date(),
+      },
+    });
+  }
+
+  const existingChartEntry = await prisma.dentalChartEntry.findFirst({ where: { patientId: ravi.id, toothNumber: 46, condition: "Caries" } });
+  if (!existingChartEntry) {
+    await prisma.dentalChartEntry.create({
+      data: { patientId: ravi.id, toothNumber: 46, condition: "Caries", status: "active", recordedById: doctorUser.id, visitId: raviVisit.id },
+    });
+  }
+
+  const existingDiagnosis = await prisma.diagnosis.findFirst({ where: { visitId: raviVisit.id, toothNumber: 46 } });
+  if (!existingDiagnosis) {
+    await prisma.diagnosis.create({
+      data: {
+        visitId: raviVisit.id,
+        patientId: ravi.id,
+        toothNumber: 46,
+        diagnosisCode: "K04.0",
+        description: "Irreversible pulpitis",
+        diagnosedById: doctor.id,
+      },
+    });
+  }
+
+  let ravisPlan = await prisma.treatmentPlan.findFirst({ where: { patientId: ravi.id, entityId: entities.CLINIC.id } });
+  if (!ravisPlan) {
+    ravisPlan = await prisma.treatmentPlan.create({
+      data: {
+        patientId: ravi.id,
+        entityId: entities.CLINIC.id,
+        visitId: raviVisit.id,
+        status: "ACTIVE",
+        createdById: doctorUser.id,
+        items: {
+          create: [
+            {
+              toothNumber: 46,
+              treatmentCatalogId: catalogByCode["RCT-SINGLE"].id,
+              plannedDoctorId: doctor.id,
+              estimatedCost: 5000,
+              status: "IN_PROGRESS",
+              sortOrder: 1,
+            },
+            {
+              toothNumber: 46,
+              treatmentCatalogId: catalogByCode["CROWN-PFM"].id,
+              plannedDoctorId: doctor.id,
+              estimatedCost: 6000,
+              status: "PLANNED",
+              sortOrder: 2,
+            },
+          ],
+        },
+      },
+      include: { items: true },
+    });
+
+    const rctItem = ravisPlan.items.find((i) => i.treatmentCatalogId === catalogByCode["RCT-SINGLE"].id)!;
+    await prisma.treatmentSession.create({
+      data: {
+        treatmentPlanItemId: rctItem.id,
+        visitId: raviVisit.id,
+        entityId: entities.CLINIC.id,
+        toothNumber: 46,
+        procedureCode: "RCT-SINGLE",
+        plannedByDoctorId: doctor.id,
+        assignedDoctorId: doctor.id,
+        performedByDoctorId: doctor.id,
+        plannedDate: new Date("2026-01-01"),
+        actualDate: new Date("2026-01-01"),
+        status: "COMPLETED",
+        estimatedCost: 5000,
+        actualBilledAmount: 5000,
+        clinicalRemarks: "Access opening done, canal cleaned and shaped, obturated in single sitting.",
+      },
+    });
+  }
+
+  const existingNote = await prisma.clinicalNote.findFirst({ where: { visitId: raviVisit.id, isAddendum: false } });
+  let ravisNote = existingNote;
+  if (!ravisNote) {
+    ravisNote = await prisma.clinicalNote.create({
+      data: {
+        visitId: raviVisit.id,
+        patientId: ravi.id,
+        authoredById: doctorUser.id,
+        noteType: "progress",
+        body: "Patient presented with spontaneous pain, lower right molar. RCT initiated under local anesthesia.",
+      },
+    });
+    await prisma.clinicalNote.create({
+      data: {
+        visitId: raviVisit.id,
+        patientId: ravi.id,
+        authoredById: doctorUser.id,
+        noteType: "progress",
+        body: "Addendum: patient tolerated procedure well, no immediate complications. Review in 1 week.",
+        isAddendum: true,
+        supersedesNoteId: ravisNote.id,
+      },
+    });
+  }
+
+  const existingRx = await prisma.prescription.findFirst({ where: { visitId: raviVisit.id } });
+  if (!existingRx) {
+    await prisma.prescription.create({
+      data: {
+        visitId: raviVisit.id,
+        patientId: ravi.id,
+        entityId: entities.CLINIC.id,
+        prescribedById: doctor.id,
+        itemsJson: [
+          { drugName: "Amoxicillin 500mg", dosage: "1 capsule", frequency: "3 times/day", durationDays: 5, instructions: "After food" },
+          { drugName: "Ibuprofen 400mg", dosage: "1 tablet", frequency: "As needed for pain", durationDays: 3, instructions: "Max 3/day" },
+        ],
+        notes: "Review after 1 week for obturation follow-up.",
+      },
+    });
+  }
+
+  console.log(`Seeded treatment catalog (${TREATMENT_CATALOG.length} procedures) and clinical history for ${ravi.fullName}.`);
+
   console.log(`Seeded synthetic patients (UHIDs: ${ravi.uhid}, ${priya1.uhid}, ${priya2.uhid}, ${arun.uhid}) and temp registrations (${checkedInReg.tempId} checked in, ${openReg.tempId} open).`);
 
   console.log("Seeded synthetic users for all 10 roles.");

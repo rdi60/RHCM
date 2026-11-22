@@ -22,13 +22,14 @@ export class AppointmentsController {
   @Get()
   list(
     @Query("entityId") entityId: string,
-    @Query("from") from: string,
-    @Query("to") to: string,
+    @Query("from") from?: string,
+    @Query("to") to?: string,
     @Query("doctorId") doctorId?: string,
     @Query("resourceId") resourceId?: string,
     @Query("status") status?: string,
+    @Query("patientId") patientId?: string,
   ) {
-    return this.appointmentsService.listForRange({ entityId, from, to, doctorId, resourceId, status });
+    return this.appointmentsService.listForRange({ entityId, from, to, doctorId, resourceId, status, patientId });
   }
 
   @RequirePermissions(PERMISSIONS.APPOINTMENT_BOOK)

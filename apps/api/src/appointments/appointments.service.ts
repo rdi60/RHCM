@@ -130,15 +130,24 @@ export class AppointmentsService {
     }
   }
 
-  async listForRange(params: { entityId: string; from: string; to: string; doctorId?: string; resourceId?: string; status?: string }) {
+  async listForRange(params: {
+    entityId: string;
+    from?: string;
+    to?: string;
+    doctorId?: string;
+    resourceId?: string;
+    status?: string;
+    patientId?: string;
+  }) {
     return this.prisma.client.appointment.findMany({
       where: {
         entityId: params.entityId,
-        startAt: { gte: new Date(params.from) },
-        endAt: { lte: new Date(params.to) },
+        startAt: params.from ? { gte: new Date(params.from) } : undefined,
+        endAt: params.to ? { lte: new Date(params.to) } : undefined,
         doctorId: params.doctorId,
         resourceId: params.resourceId,
         status: params.status as any,
+        patientId: params.patientId,
       },
       include: {
         patient: { select: { id: true, fullName: true, uhid: true } },

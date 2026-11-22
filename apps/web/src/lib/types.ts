@@ -207,6 +207,122 @@ export interface VisitRow {
   checkedOutAt: string | null;
 }
 
+export interface TreatmentCatalogRow {
+  id: string;
+  code: string;
+  name: string;
+  category: string;
+  defaultDurationMinutes: number;
+  defaultPrice: string;
+  isActive: boolean;
+}
+
+export interface DentalChartEntryRow {
+  id: string;
+  patientId: string;
+  toothNumber: number;
+  dentition: "PERMANENT" | "DECIDUOUS";
+  surface: string | null;
+  condition: string;
+  status: string | null;
+  recordedAt: string;
+  recordedById: string | null;
+  visitId: string | null;
+}
+
+export interface DiagnosisRow {
+  id: string;
+  visitId: string;
+  patientId: string;
+  toothNumber: number | null;
+  diagnosisCode: string | null;
+  description: string;
+  diagnosedById: string | null;
+  diagnosedAt: string;
+}
+
+export type TreatmentPlanStatus = "DRAFT" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+export type TreatmentPlanItemStatus = "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+export type TreatmentSessionStatus = "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+
+export interface TreatmentSessionRow {
+  id: string;
+  treatmentPlanItemId: string;
+  visitId: string | null;
+  toothNumber: number | null;
+  procedureCode: string | null;
+  assignedDoctor?: { id: string; fullName: string } | null;
+  performedByDoctor?: { id: string; fullName: string } | null;
+  plannedDate: string | null;
+  actualDate: string | null;
+  status: TreatmentSessionStatus;
+  estimatedCost: string;
+  actualBilledAmount: string | null;
+  clinicalRemarks: string | null;
+}
+
+export interface TreatmentPlanItemRow {
+  id: string;
+  toothNumber: number | null;
+  treatmentCatalogId: string;
+  treatmentCatalog: TreatmentCatalogRow;
+  plannedDoctor?: { id: string; fullName: string } | null;
+  quantity: number;
+  estimatedCost: string;
+  status: TreatmentPlanItemStatus;
+  sortOrder: number;
+  sessions: TreatmentSessionRow[];
+}
+
+export interface TreatmentPlanRow {
+  id: string;
+  patientId: string;
+  entityId: string;
+  visitId: string | null;
+  status: TreatmentPlanStatus;
+  createdAt: string;
+  items: TreatmentPlanItemRow[];
+}
+
+export interface ClinicalNoteRow {
+  id: string;
+  visitId: string;
+  patientId: string;
+  authoredById: string | null;
+  authoredBy?: { id: string; email: string } | null;
+  authoredAt: string;
+  noteType: string;
+  body: string;
+  isAddendum: boolean;
+  supersedesNoteId: string | null;
+}
+
+export interface PrescriptionItem {
+  drugName: string;
+  dosage: string;
+  frequency: string;
+  durationDays: number;
+  instructions?: string;
+}
+
+export interface PrescriptionRow {
+  id: string;
+  visitId: string;
+  patientId: string;
+  prescribedById: string | null;
+  prescribedAt: string;
+  itemsJson: PrescriptionItem[];
+  notes: string | null;
+}
+
+export interface VisitDetailRow extends VisitRow {
+  clinicalFindings: string | null;
+  diagnosisSummary: string | null;
+  treatmentAdvice: string | null;
+  nextAppointmentRecommendedAt: string | null;
+  appointment?: AppointmentRow | null;
+}
+
 export interface AuditLogRow {
   id: string;
   occurredAt: string;

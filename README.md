@@ -16,21 +16,33 @@ matching an existing patient or minting a new UHID, with cross-entity
 identity linking gated behind the `patient.cross_entity_link` permission
 and a recorded consent.
 
-**Stage 3** (this state of the repo) adds: doctor scheduling and
-chair/OT booking on one unified `appointments` model, with double-booking
-prevented at the **database level** by partial GIST exclusion constraints
-(a doctor or a chair/OT can never have two overlapping live appointments —
-see `Appointment`'s doc comment in `packages/database/prisma/schema.prisma`
-for the authorized-emergency-override design and its deliberate limits);
-Day (chair/OT resource grid), Week, Month, and Doctor-wise calendar views;
+**Stage 3** adds: doctor scheduling and chair/OT booking on one unified
+`appointments` model, with double-booking prevented at the **database
+level** by partial GIST exclusion constraints (a doctor or a chair/OT can
+never have two overlapping live appointments — see `Appointment`'s doc
+comment in `packages/database/prisma/schema.prisma` for the
+authorized-emergency-override design and its deliberate limits); Day
+(chair/OT resource grid), Week, Month, and Doctor-wise calendar views;
 availability computed from a doctor's recurring hours minus leave minus
 existing bookings; a status-transition workflow (Booked → Confirmed →
 Arrived → Checked In → Waiting → In Treatment → Completed, with
 Cancelled/No-Show/Rescheduled reachable earlier); and check-in now creates
 a `Visit` (with its own per-entity visit number), confirming a scheduled
-appointment when one exists or logging a walk-in when none does. Later
-stages (clinical records, billing, documents/reporting) build on this
-foundation — see `docs/ARCHITECTURE.md` Section 9 for the full plan.
+appointment when one exists or logging a walk-in when none does.
+
+**Stage 4** (this state of the repo) adds the clinical module: a Patient
+Dashboard (tabs for Overview/Visits/Appointments/Treatment Plans) and a
+per-visit Clinical Encounter screen (`/visits/:id`) covering an
+interactive FDI odontogram (append-only history — a correction is a new
+row, never an overwrite, so "what did we think last time" is always
+reconstructable), tooth-wise diagnoses, multi-session treatment planning
+(`TreatmentPlan` → `TreatmentPlanItem` → `TreatmentSession`, the session
+being the spec's "Treatment ID", tracking who planned, who it's assigned
+to, and who actually performed it — auto-resolved from the acting
+doctor's own account, not just whoever's logged in), append-only clinical
+notes with an addendum chain for corrections, and prescriptions. Later
+stages (billing, documents/reporting) build on this foundation — see
+`docs/ARCHITECTURE.md` Section 9 for the full plan.
 
 ## Stack
 
@@ -143,6 +155,17 @@ Priya Sharma's second record, already checked in at the Clinic, so
 **Waiting List** shows something immediately rather than needing a check-in
 first.
 
+### Synthetic seed clinical data
+
+A 12-procedure treatment catalog (consultation through implants), and a
+`COMPLETED` visit for Ravi Kumar at the Clinic with: a dental chart entry
+(tooth 46, Caries), a diagnosis (irreversible pulpitis), an active
+treatment plan with two items — a root canal (completed, with its session
+marked performed by `doctor@rhcm.test`) and a crown (still planned) — a
+clinical note with one addendum, and a two-drug prescription. Open
+`/patients/<Ravi's id>` → **Visits** tab, or just search "Ravi" from
+Patients, to see it end to end.
+
 ### First production Super Administrator
 
 Never seed synthetic data in production. Instead:
@@ -212,6 +235,23 @@ real database and a real NestJS instance:
 - check-in creates a Visit from a scheduled appointment (doctor/chair/reason
   copied across), appears on the waiting list, and the full
   Waiting → In Treatment → Completed walk also completes its appointment
+
+`apps/api/test/clinical.e2e-spec.ts` (Stage 4) additionally covers:
+
+- the treatment catalog is readable globally (not entity-scoped)
+- the dental chart is append-only: recording two entries for the same
+  tooth keeps both, most-recent-first — never an overwrite
+- recording a chart entry denied without `clinical.diagnose`
+- the full plan → item → session lifecycle: creating a session moves its
+  item from `PLANNED` to `IN_PROGRESS`; marking it `COMPLETED` moves the
+  item to `COMPLETED` too, and auto-resolves `performedByDoctorId` from
+  the acting doctor's own account
+- planning denied without `clinical.plan_treatment` (nurse); performing a
+  session denied without `clinical.perform_treatment` (receptionist)
+- a clinical note addendum chains to the original without mutating it
+- a doctor can issue a prescription; a receptionist cannot
+- entity-scoped 404s on a visit's diagnoses/notes/prescriptions from the
+  wrong entity
 
 ## Project layout
 

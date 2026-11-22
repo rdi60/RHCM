@@ -5,6 +5,7 @@ import { RequirePermissions } from "../common/decorators/permissions.decorator";
 import { PERMISSIONS } from "@rhcm/shared";
 import { UpdateVisitStatusDto } from "./dto/update-visit-status.dto";
 import { AssignVisitDto } from "./dto/assign-visit.dto";
+import { UpdateVisitClinicalDto } from "./dto/update-visit-clinical.dto";
 import type { AuthenticatedUser } from "../common/types/authenticated-user";
 
 @Controller("visits")
@@ -13,8 +14,13 @@ export class VisitsController {
 
   @RequirePermissions(PERMISSIONS.APPOINTMENT_READ)
   @Get()
-  list(@Query("entityId") entityId: string, @Query("status") status?: string, @Query("date") date?: string) {
-    return this.visitsService.listForEntity(entityId, { status, date });
+  list(
+    @Query("entityId") entityId: string,
+    @Query("status") status?: string,
+    @Query("date") date?: string,
+    @Query("patientId") patientId?: string,
+  ) {
+    return this.visitsService.listForEntity(entityId, { status, date, patientId });
   }
 
   @RequirePermissions(PERMISSIONS.APPOINTMENT_READ)
@@ -33,5 +39,11 @@ export class VisitsController {
   @Patch(":id/assign")
   assign(@Param("id") id: string, @Body() dto: AssignVisitDto, @CurrentUser() user: AuthenticatedUser) {
     return this.visitsService.assign(id, dto, user.id);
+  }
+
+  @RequirePermissions(PERMISSIONS.CLINICAL_NOTE_WRITE)
+  @Patch(":id/clinical")
+  updateClinical(@Param("id") id: string, @Body() dto: UpdateVisitClinicalDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.visitsService.updateClinical(id, dto, user.id);
   }
 }
