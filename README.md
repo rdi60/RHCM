@@ -8,15 +8,29 @@ chairs), built as described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 authentication with mandatory MFA for privileged roles, role-based +
 entity-scoped access control, and doctor/staff management.
 
-**Stage 2** (this state of the repo) adds: temporary registration (name,
-phone, DOB/age, gender, visit reason, preferred doctor — incomplete data
-allowed), transactional/never-reused UHID generation, patient search
-(UHID / temp ID / name / phone, with duplicate-match surfacing), and
-check-in — matching an existing patient or minting a new UHID, with
-cross-entity identity linking gated behind the `patient.cross_entity_link`
-permission and a recorded consent. Later stages (scheduling, clinical
-records, billing, documents/reporting) build on this foundation — see
-`docs/ARCHITECTURE.md` Section 9 for the full plan.
+**Stage 2** adds: temporary registration (name, phone, DOB/age, gender,
+visit reason, preferred doctor — incomplete data allowed),
+transactional/never-reused UHID generation, patient search (UHID / temp
+ID / name / phone, with duplicate-match surfacing), and check-in —
+matching an existing patient or minting a new UHID, with cross-entity
+identity linking gated behind the `patient.cross_entity_link` permission
+and a recorded consent.
+
+**Stage 3** (this state of the repo) adds: doctor scheduling and
+chair/OT booking on one unified `appointments` model, with double-booking
+prevented at the **database level** by partial GIST exclusion constraints
+(a doctor or a chair/OT can never have two overlapping live appointments —
+see `Appointment`'s doc comment in `packages/database/prisma/schema.prisma`
+for the authorized-emergency-override design and its deliberate limits);
+Day (chair/OT resource grid), Week, Month, and Doctor-wise calendar views;
+availability computed from a doctor's recurring hours minus leave minus
+existing bookings; a status-transition workflow (Booked → Confirmed →
+Arrived → Checked In → Waiting → In Treatment → Completed, with
+Cancelled/No-Show/Rescheduled reachable earlier); and check-in now creates
+a `Visit` (with its own per-entity visit number), confirming a scheduled
+appointment when one exists or logging a walk-in when none does. Later
+stages (clinical records, billing, documents/reporting) build on this
+foundation — see `docs/ARCHITECTURE.md` Section 9 for the full plan.
 
 ## Stack
 
@@ -119,6 +133,16 @@ Plus one `OPEN` (not yet checked in) temp registration, `TMP-000002`
 ("Walk-in Enquiry"), with only a name and phone — demonstrating that
 registration is allowed to be incomplete.
 
+### Synthetic seed appointments & visits
+
+Three future `BOOKED`/`CONFIRMED` appointments, so the calendar views
+aren't empty on first login: Priya Sharma in a Clinic chair, Arun Das in
+the Clinic's OT 1 (both 2026-12-10 IST), and Ravi Kumar in a Trust chair
+(2026-12-11 IST) — all with `doctor@rhcm.test`. Plus one `WAITING` visit for
+Priya Sharma's second record, already checked in at the Clinic, so
+**Waiting List** shows something immediately rather than needing a check-in
+first.
+
 ### First production Super Administrator
 
 Never seed synthetic data in production. Instead:
@@ -170,6 +194,24 @@ real database and a real NestJS instance:
   preserved) with consent recorded
 - entity-scoped check-in rejection (wrong entity) and patient-detail 404
   when there's no link to the requested entity
+
+`apps/api/test/appointments.e2e-spec.ts` (Stage 3) additionally covers:
+
+- booking, and that an overlapping booking for the same doctor OR the same
+  chair/OT is rejected (409) even when the other half of the pair differs
+- that booking never collides under **5 concurrent** requests for the same
+  doctor/slot — exactly one succeeds
+- the authorized emergency override: denied without
+  `appointment.override_conflict`; with it, a doctor conflict is bypassed
+  but the **same chair is still rejected** — the override never applies
+  to resources
+- invalid status jumps rejected (e.g. Booked → Completed directly) and the
+  normal Booked → Arrived → Checked In path allowed
+- availability marks an already-booked slot unavailable
+- entity-scoped appointment lookup (404 from the wrong entity)
+- check-in creates a Visit from a scheduled appointment (doctor/chair/reason
+  copied across), appears on the waiting list, and the full
+  Waiting → In Treatment → Completed walk also completes its appointment
 
 ## Project layout
 

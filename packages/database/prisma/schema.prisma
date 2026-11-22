@@ -41,6 +41,8 @@ model Entity {
   temporaryRegistrations TemporaryRegistration[]
   patientEntityLinks     PatientEntityLink[]
   consentRecords         ConsentRecord[]
+  appointments           Appointment[]
+  visits                 Visit[]
 
   @@map("entities")
 }
@@ -60,6 +62,8 @@ model EntitySettings {
   estimateNextSeq Int    @default(1)
   tempRegPrefix   String @default("TMP")
   tempRegNextSeq  Int    @default(1)
+  visitPrefix     String @default("VS")
+  visitNextSeq    Int    @default(1)
 
   gstin       String?
   addressJson Json?
@@ -87,6 +91,9 @@ model ClinicResource {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  appointments Appointment[]
+  visits       Visit[]
 
   @@unique([entityId, type, number])
   @@index([entityId])
@@ -129,6 +136,7 @@ model User {
   auditLogs                     AuditLog[]
   consentsCaptured              ConsentRecord[]
   temporaryRegistrationsCreated TemporaryRegistration[]
+  appointmentsCreated           Appointment[]
 
   @@map("users")
 }
@@ -215,6 +223,8 @@ model Doctor {
   leaves                        DoctorLeave[]
   assignments                   DoctorEntityAssignment[]
   preferredForTempRegistrations TemporaryRegistration[]
+  appointments                  Appointment[]
+  visits                        Visit[]
 
   @@map("doctors")
 }
@@ -401,6 +411,8 @@ model Patient {
   entityLinks            PatientEntityLink[]
   consentRecords         ConsentRecord[]
   temporaryRegistrations TemporaryRegistration[]
+  appointments           Appointment[]
+  visits                 Visit[]
 
   @@index([fullName])
   @@index([phone])
@@ -453,6 +465,8 @@ model TemporaryRegistration {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  appointments Appointment[]
+
   @@unique([entityId, tempId])
   @@index([phone])
   @@map("temporary_registrations")
@@ -477,4 +491,134 @@ model ConsentRecord {
   @@index([patientId])
   @@index([entityId])
   @@map("consent_records")
+}
+
+// ---------------------------------------------------------------------------
+// Scheduling (Stage 3)
+// ---------------------------------------------------------------------------
+
+enum AppointmentType {
+  CONSULTATION
+  TREATMENT
+  FOLLOW_UP
+  EMERGENCY
+}
+
+enum AppointmentStatus {
+  BOOKED
+  CONFIRMED
+  ARRIVED
+  CHECKED_IN
+  WAITING
+  IN_TREATMENT
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+  RESCHEDULED
+}
+
+/// Double-booking (same doctor, or same chair/OT, overlapping time) is
+/// prevented at the DATABASE level by partial GIST exclusion constraints
+/// hand-written into this model's migration (Prisma has no schema syntax
+/// for EXCLUDE constraints) — see
+/// packages/database/prisma/migrations/*_stage3_appointments/migration.sql.
+/// Those constraints are the actual guarantee; application code re-checks
+/// before insert only to fail fast with a friendly message.
+///
+/// Authorized emergency override: an EMERGENCY-type appointment created by
+/// a caller holding appointment.override_conflict may set
+/// isEmergencyOverride=true, which is excluded from the doctor-conflict
+/// constraint's predicate (never the resource/chair constraint — two
+/// patients still can't physically occupy one chair). This is a documented,
+/// narrow trade-off: once an override exists, the doctor-conflict
+/// constraint no longer compares new bookings against that specific slot
+/// either, so the UI's live availability check (not just the DB
+/// constraint) is what actually warns reception of the resulting overlap
+/// before they book over it.
+model Appointment {
+  id       String @id @default(cuid())
+  entityId String
+  entity   Entity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  // Exactly one of these two is set — enforced by a CHECK constraint in the
+  // migration, same reason as the exclusion constraints above.
+  patientId               String?
+  patient                 Patient?               @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  temporaryRegistrationId String?
+  temporaryRegistration   TemporaryRegistration? @relation(fields: [temporaryRegistrationId], references: [id], onDelete: Cascade)
+
+  doctorId String
+  doctor   Doctor @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+
+  resourceId String?
+  resource   ClinicResource? @relation(fields: [resourceId], references: [id], onDelete: SetNull)
+
+  startAt DateTime @db.Timestamptz(3)
+  endAt   DateTime @db.Timestamptz(3)
+
+  type          AppointmentType   @default(CONSULTATION)
+  status        AppointmentStatus @default(BOOKED)
+  procedureHint String?
+  remarks       String?
+
+  isEmergencyOverride Boolean @default(false)
+
+  rescheduledFromId String?       @unique
+  rescheduledFrom   Appointment?  @relation("AppointmentReschedule", fields: [rescheduledFromId], references: [id])
+  rescheduledTo     Appointment[] @relation("AppointmentReschedule")
+
+  createdById String?
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  visits Visit[]
+
+  @@index([entityId, startAt])
+  @@index([doctorId, startAt])
+  @@index([resourceId, startAt])
+  @@map("appointments")
+}
+
+enum VisitStatus {
+  WAITING
+  IN_TREATMENT
+  COMPLETED
+  CANCELLED
+}
+
+model Visit {
+  id          String @id @default(cuid())
+  visitNumber String // e.g. "VS-000123", per-entity sequence (EntitySettings.visitNextSeq)
+
+  entityId String
+  entity   Entity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  appointmentId String?      @unique
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+
+  // Nullable: a walk-in checked in without a preferred doctor on file isn't
+  // blocked — triage/reception assigns one afterwards (PATCH .../assign).
+  doctorId String?
+  doctor   Doctor? @relation(fields: [doctorId], references: [id], onDelete: SetNull)
+
+  resourceId String?
+  resource   ClinicResource? @relation(fields: [resourceId], references: [id], onDelete: SetNull)
+
+  chiefComplaint String?
+  status         VisitStatus @default(WAITING)
+
+  checkedInAt  DateTime  @default(now())
+  checkedOutAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([entityId, visitNumber])
+  @@index([entityId, status])
+  @@map("visits")
 }

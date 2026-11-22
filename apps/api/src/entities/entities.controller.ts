@@ -44,4 +44,11 @@ export class EntitiesController {
   listResources(@Param("entityId") entityId: string) {
     return this.entitiesService.listResources(entityId);
   }
+
+  /** Low-sensitivity resource list (chair/OT numbers and labels) for scheduling screens — not the admin management list. */
+  @RequirePermissions(PERMISSIONS.APPOINTMENT_READ)
+  @Get(":entityId/resources/directory")
+  resourceDirectory(@Param("entityId") entityId: string) {
+    return this.entitiesService.listResources(entityId);
+  }
 }

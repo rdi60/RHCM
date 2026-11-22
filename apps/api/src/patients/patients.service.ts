@@ -1,6 +1,8 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
+import { VisitsService } from "../visits/visits.service";
+import { APPOINTMENT_ALLOWED_TRANSITIONS, type AppointmentStatus } from "../appointments/appointments.service";
 import { nextTempRegistrationId, nextUhid } from "@rhcm/database";
 import { PERMISSIONS } from "@rhcm/shared";
 import type { CreateTempRegistrationDto } from "./dto/create-temp-registration.dto";
@@ -13,6 +15,7 @@ export class PatientsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly visitsService: VisitsService,
   ) {}
 
   // --- Temporary registrations ---------------------------------------------
@@ -236,7 +239,46 @@ export class PatientsService {
         after: { patientId: patient.id },
       });
 
-      return { patient, temporaryRegistration: updatedReg };
+      let doctorId: string | null = reg.preferredDoctorId;
+      let resourceId: string | null = null;
+      let chiefComplaint: string | null = reg.visitReason;
+
+      if (dto.appointmentId) {
+        const appointment = await tx.appointment.findUnique({ where: { id: dto.appointmentId } });
+        if (!appointment || appointment.entityId !== dto.entityId) {
+          throw new NotFoundException("Appointment not found for this entity");
+        }
+        if (appointment.temporaryRegistrationId !== tempRegId && appointment.patientId !== patient.id) {
+          throw new BadRequestException("This appointment does not belong to the patient being checked in");
+        }
+        const allowed = APPOINTMENT_ALLOWED_TRANSITIONS[appointment.status as AppointmentStatus];
+        if (!allowed.includes("CHECKED_IN")) {
+          throw new BadRequestException(`Cannot check in an appointment in status ${appointment.status}`);
+        }
+        await tx.appointment.update({
+          where: { id: dto.appointmentId },
+          // Also attach the now-resolved patient: the appointment may have
+          // been booked against the temporary registration only, and the
+          // "exactly one of patientId/temporaryRegistrationId" CHECK
+          // constraint means temporaryRegistrationId must be cleared the
+          // moment patientId is set, even if it was already set before.
+          data: { status: "CHECKED_IN", patientId: patient.id, temporaryRegistrationId: null },
+        });
+        doctorId = appointment.doctorId;
+        resourceId = appointment.resourceId;
+        chiefComplaint = appointment.procedureHint ?? chiefComplaint;
+      }
+
+      const visit = await this.visitsService.createForCheckIn(tx, {
+        entityId: dto.entityId,
+        patientId: patient.id,
+        appointmentId: dto.appointmentId,
+        doctorId,
+        resourceId,
+        chiefComplaint,
+      });
+
+      return { patient, temporaryRegistration: updatedReg, visit };
     });
   }
 

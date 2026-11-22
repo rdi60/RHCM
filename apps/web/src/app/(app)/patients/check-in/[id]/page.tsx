@@ -6,7 +6,8 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { PERMISSIONS } from "@rhcm/shared";
-import type { CrossEntityMatch, PatientRow, PatientSearchResult, TemporaryRegistrationRow } from "@/lib/types";
+import type { AppointmentRow, CrossEntityMatch, PatientRow, PatientSearchResult, TemporaryRegistrationRow } from "@/lib/types";
+import { formatIstDateTime } from "@/lib/ist";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,11 +25,18 @@ export default function CheckInPage() {
   const [wantsNew, setWantsNew] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
   const [showCrossEntity, setShowCrossEntity] = useState(false);
+  const [appointmentId, setAppointmentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const regQuery = useQuery({
     queryKey: ["temp-registration", params.id, selectedEntityId],
     queryFn: () => api.get<TemporaryRegistrationRow>(`/temp-registrations/${params.id}?entityId=${selectedEntityId}`),
+    enabled: Boolean(selectedEntityId),
+  });
+
+  const appointmentsQuery = useQuery({
+    queryKey: ["appointments-for-temp-reg", selectedEntityId, params.id],
+    queryFn: () => api.get<AppointmentRow[]>(`/appointments/for-temp-registration/${params.id}?entityId=${selectedEntityId}`),
     enabled: Boolean(selectedEntityId),
   });
 
@@ -52,6 +60,7 @@ export default function CheckInPage() {
         entityId: selectedEntityId,
         matchedPatientId: wantsNew ? undefined : selectedPatient?.id,
         crossEntityConsentGranted: selectedPatient?.crossEntity ? consentChecked : undefined,
+        appointmentId: appointmentId ?? undefined,
       }),
     onSuccess: (res) => router.push(`/patients/${res.patient.id}`),
     onError: (err) => setError(err instanceof ApiError ? err.message : "Check-in failed"),
@@ -81,6 +90,33 @@ export default function CheckInPage() {
           </CardDescription>
         </CardHeader>
       </Card>
+
+      {(appointmentsQuery.data?.length ?? 0) > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Scheduled appointment</CardTitle>
+            <CardDescription>Confirm which booked appointment this check-in is for, if any.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            {appointmentsQuery.data?.map((a) => (
+              <button
+                key={a.id}
+                onClick={() => setAppointmentId(appointmentId === a.id ? null : a.id)}
+                className={`flex items-center justify-between rounded-md border p-3 text-left ${appointmentId === a.id ? "border-primary bg-primary/5" : "border-border hover:bg-muted"}`}
+              >
+                <div>
+                  <p className="font-medium">{formatIstDateTime(a.startAt)}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {a.doctor?.fullName} {a.resource ? `· ${a.resource.label ?? `${a.resource.type} ${a.resource.number}`}` : ""}
+                  </p>
+                </div>
+                {appointmentId === a.id && <Badge>Selected</Badge>}
+              </button>
+            ))}
+            {!appointmentId && <p className="text-xs text-muted-foreground">No appointment selected — this will be treated as a walk-in.</p>}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

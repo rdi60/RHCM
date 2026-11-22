@@ -13,4 +13,9 @@ export class CheckInDto {
   @IsOptional()
   @IsBoolean()
   crossEntityConsentGranted?: boolean;
+
+  /** An existing BOOKED/CONFIRMED appointment this check-in is for, if the patient had one. */
+  @IsOptional()
+  @IsString()
+  appointmentId?: string;
 }

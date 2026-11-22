@@ -14,7 +14,7 @@ import {
   type SystemRoleName,
 } from "@rhcm/shared";
 import { SecretCipher } from "./secret-cipher";
-import { nextTempRegistrationId, nextUhid } from "../src/sequences";
+import { nextTempRegistrationId, nextUhid, nextVisitNumber } from "../src/sequences";
 import { PrismaClient, ResourceType } from "../generated/client";
 
 const prisma = new PrismaClient();
@@ -347,6 +347,99 @@ async function main() {
       },
     });
   }
+
+  // --- Appointments & visits (Stage 3) --------------------------------------
+  async function findOrCreateAppointment(opts: {
+    entityId: string;
+    patientId: string;
+    doctorId: string;
+    resourceId?: string;
+    startAt: Date;
+    endAt: Date;
+    type: "CONSULTATION" | "TREATMENT" | "FOLLOW_UP" | "EMERGENCY";
+    status?: "BOOKED" | "CONFIRMED";
+    procedureHint?: string;
+  }) {
+    const existing = await prisma.appointment.findFirst({
+      where: { entityId: opts.entityId, patientId: opts.patientId, startAt: opts.startAt },
+    });
+    if (existing) return existing;
+    return prisma.appointment.create({
+      data: {
+        entityId: opts.entityId,
+        patientId: opts.patientId,
+        doctorId: opts.doctorId,
+        resourceId: opts.resourceId,
+        startAt: opts.startAt,
+        endAt: opts.endAt,
+        type: opts.type,
+        status: opts.status ?? "BOOKED",
+        procedureHint: opts.procedureHint,
+        createdById: receptionist.id,
+      },
+    });
+  }
+
+  const clinicChair3 = await prisma.clinicResource.findFirstOrThrow({
+    where: { entityId: entities.CLINIC.id, type: "CHAIR", number: 3 },
+  });
+  const clinicOt1 = await prisma.clinicResource.findFirstOrThrow({ where: { entityId: entities.CLINIC.id, type: "OT", number: 1 } });
+  const trustChair1 = await prisma.clinicResource.findFirstOrThrow({ where: { entityId: entities.TRUST.id, type: "CHAIR", number: 1 } });
+
+  await findOrCreateAppointment({
+    entityId: entities.CLINIC.id,
+    patientId: priya1.id,
+    doctorId: doctor.id,
+    resourceId: clinicChair3.id,
+    startAt: new Date("2026-12-10T03:30:00.000Z"), // 09:00 IST
+    endAt: new Date("2026-12-10T03:45:00.000Z"),
+    type: "CONSULTATION",
+    procedureHint: "Routine checkup",
+  });
+
+  await findOrCreateAppointment({
+    entityId: entities.CLINIC.id,
+    patientId: arun.id,
+    doctorId: doctor.id,
+    resourceId: clinicOt1.id,
+    startAt: new Date("2026-12-10T05:30:00.000Z"), // 11:00 IST
+    endAt: new Date("2026-12-10T07:30:00.000Z"),
+    type: "TREATMENT",
+    procedureHint: "Surgical extraction",
+  });
+
+  await findOrCreateAppointment({
+    entityId: entities.TRUST.id,
+    patientId: ravi.id,
+    doctorId: doctor.id,
+    resourceId: trustChair1.id,
+    startAt: new Date("2026-12-11T04:00:00.000Z"), // 09:30 IST
+    endAt: new Date("2026-12-11T04:15:00.000Z"),
+    type: "CONSULTATION",
+    status: "CONFIRMED",
+  });
+
+  // A visit already in progress, so the Waiting List screen shows something
+  // the moment you log in without needing to check anyone in by hand.
+  const existingWaitingVisit = await prisma.visit.findFirst({
+    where: { entityId: entities.CLINIC.id, patientId: priya2.id, status: "WAITING" },
+  });
+  if (!existingWaitingVisit) {
+    const visitNumber = await nextVisitNumber(prisma, entities.CLINIC.id);
+    await prisma.visit.create({
+      data: {
+        visitNumber,
+        entityId: entities.CLINIC.id,
+        patientId: priya2.id,
+        doctorId: doctor.id,
+        resourceId: clinicChair3.id,
+        chiefComplaint: "Walk-in — sensitivity in upper molar",
+        status: "WAITING",
+      },
+    });
+  }
+
+  console.log("Seeded synthetic appointments (Clinic chair + OT, Trust chair) and one in-progress visit.");
 
   console.log(`Seeded synthetic patients (UHIDs: ${ravi.uhid}, ${priya1.uhid}, ${priya2.uhid}, ${arun.uhid}) and temp registrations (${checkedInReg.tempId} checked in, ${openReg.tempId} open).`);
 

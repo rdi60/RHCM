@@ -43,3 +43,18 @@ export async function nextTempRegistrationId(tx: Executor, entityId: string): Pr
   const { tempRegPrefix, seq } = rows[0];
   return `${tempRegPrefix}-${String(seq).padStart(6, "0")}`;
 }
+
+/** Same pattern as nextTempRegistrationId, but for visit numbers (entity_settings.visitNextSeq). */
+export async function nextVisitNumber(tx: Executor, entityId: string): Promise<string> {
+  const rows = await tx.$queryRaw<{ visitPrefix: string; seq: number }[]>`
+    UPDATE entity_settings
+    SET "visitNextSeq" = "visitNextSeq" + 1
+    WHERE "entityId" = ${entityId}
+    RETURNING "visitPrefix", "visitNextSeq" - 1 AS seq
+  `;
+  if (rows.length === 0) {
+    throw new Error(`No entity_settings row for entity ${entityId}`);
+  }
+  const { visitPrefix, seq } = rows[0];
+  return `${visitPrefix}-${String(seq).padStart(6, "0")}`;
+}

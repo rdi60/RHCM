@@ -145,6 +145,68 @@ export interface CrossEntityMatch {
   linkedEntities: string[];
 }
 
+export type AppointmentType = "CONSULTATION" | "TREATMENT" | "FOLLOW_UP" | "EMERGENCY";
+export type AppointmentStatus =
+  | "BOOKED"
+  | "CONFIRMED"
+  | "ARRIVED"
+  | "CHECKED_IN"
+  | "WAITING"
+  | "IN_TREATMENT"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "NO_SHOW"
+  | "RESCHEDULED";
+export type VisitStatus = "WAITING" | "IN_TREATMENT" | "COMPLETED" | "CANCELLED";
+
+export interface AppointmentRow {
+  id: string;
+  entityId: string;
+  patientId: string | null;
+  patient?: { id: string; fullName: string; uhid: string; phone?: string | null } | null;
+  temporaryRegistrationId: string | null;
+  temporaryRegistration?: { id: string; fullName: string; tempId: string; phone?: string | null } | null;
+  doctorId: string;
+  doctor?: { id: string; fullName: string };
+  resourceId: string | null;
+  resource?: { id: string; type: "CHAIR" | "OT"; number: number; label: string | null } | null;
+  startAt: string;
+  endAt: string;
+  type: AppointmentType;
+  status: AppointmentStatus;
+  procedureHint: string | null;
+  remarks: string | null;
+  isEmergencyOverride: boolean;
+}
+
+export interface AvailabilitySlot {
+  startAt: string;
+  endAt: string;
+  available: boolean;
+}
+
+export interface AvailabilityResponse {
+  onLeave: boolean;
+  slots: AvailabilitySlot[];
+}
+
+export interface VisitRow {
+  id: string;
+  visitNumber: string;
+  entityId: string;
+  patientId: string;
+  patient?: { id: string; fullName: string; uhid: string };
+  appointmentId: string | null;
+  doctorId: string | null;
+  doctor?: { id: string; fullName: string } | null;
+  resourceId: string | null;
+  resource?: { id: string; type: "CHAIR" | "OT"; number: number; label: string | null } | null;
+  chiefComplaint: string | null;
+  status: VisitStatus;
+  checkedInAt: string;
+  checkedOutAt: string | null;
+}
+
 export interface AuditLogRow {
   id: string;
   occurredAt: string;
