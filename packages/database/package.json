@@ -1,0 +1,27 @@
+{
+  "name": "@rhcm/database",
+  "private": true,
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "generate": "prisma generate",
+    "migrate": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "seed": "ts-node --transpile-only prisma/seed.ts",
+    "bootstrap:admin": "ts-node --transpile-only prisma/bootstrap-admin.ts",
+    "studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client": "5.22.0",
+    "@rhcm/shared": "workspace:*",
+    "argon2": "0.41.1"
+  },
+  "devDependencies": {
+    "prisma": "5.22.0",
+    "ts-node": "10.9.2",
+    "typescript": "5.7.3",
+    "@types/node": "22.10.5"
+  }
+}

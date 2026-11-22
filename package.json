@@ -1,0 +1,31 @@
+{
+  "name": "rhcm",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.28.0",
+  "scripts": {
+    "dev:api": "pnpm --filter @rhcm/api dev",
+    "dev:web": "pnpm --filter @rhcm/web dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "db:generate": "pnpm --filter @rhcm/database generate",
+    "db:migrate": "pnpm --filter @rhcm/database migrate",
+    "db:seed": "pnpm --filter @rhcm/database seed",
+    "db:bootstrap:admin": "pnpm --filter @rhcm/database bootstrap:admin",
+    "db:studio": "pnpm --filter @rhcm/database studio"
+  },
+  "devDependencies": {
+    "typescript": "5.7.3",
+    "prettier": "3.4.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "argon2",
+      "prisma"
+    ]
+  }
+}

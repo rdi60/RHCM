@@ -1,0 +1,319 @@
+// RHCM — Stage 1 schema: tenancy, auth, RBAC, staff.
+// See docs/ARCHITECTURE.md Section 5 for the full target design.
+// Later stages extend this file additively (new models / new columns),
+// never by reshaping what Stage 1 ships.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Tenancy
+// ---------------------------------------------------------------------------
+
+model Entity {
+  id          String  @id @default(cuid())
+  code        String  @unique // e.g. "CLINIC", "TRUST"
+  legalName   String
+  displayName String
+  timezone    String  @default("Asia/Kolkata")
+  currency    String  @default("INR")
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  settings            EntitySettings?
+  userAccess          UserEntityAccess[]
+  roles               Role[]
+  resources           ClinicResource[]
+  availability        DoctorAvailability[]
+  doctorLeaves        DoctorLeave[]
+  doctorAssignments   DoctorEntityAssignment[]
+  staffAssignments    StaffEntityAssignment[]
+  auditLogs           AuditLog[]
+
+  @@map("entities")
+}
+
+model EntitySettings {
+  id       String @id @default(cuid())
+  entityId String @unique
+  entity   Entity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  brandingJson Json?
+
+  invoicePrefix   String @default("INV")
+  invoiceNextSeq  Int    @default(1)
+  receiptPrefix   String @default("RCT")
+  receiptNextSeq  Int    @default(1)
+  estimatePrefix  String @default("EST")
+  estimateNextSeq Int    @default(1)
+
+  gstin       String?
+  addressJson Json?
+  contactJson Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("entity_settings")
+}
+
+enum ResourceType {
+  CHAIR
+  OT
+}
+
+model ClinicResource {
+  id       String       @id @default(cuid())
+  entityId String
+  entity   Entity       @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  type     ResourceType
+  number   Int
+  label    String?
+  isActive Boolean      @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([entityId, type, number])
+  @@index([entityId])
+  @@map("clinic_resources")
+}
+
+// ---------------------------------------------------------------------------
+// Identity & RBAC
+// ---------------------------------------------------------------------------
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+model User {
+  id                 String     @id @default(cuid())
+  email              String     @unique
+  phone              String?
+  passwordHash       String
+  mfaSecretEncrypted String?
+  mfaEnabled         Boolean    @default(false)
+  status             UserStatus @default(ACTIVE)
+  lastLoginAt        DateTime?
+  failedLoginCount   Int        @default(0)
+  lockedUntil        DateTime?
+
+  passwordResetTokenHash  String?
+  passwordResetExpiresAt  DateTime?
+
+  pendingMfaSecretEncrypted String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entityAccess   UserEntityAccess[]
+  doctorProfile  Doctor?
+  staffProfile   Staff?
+  rolesCreated   Role[]             @relation("RoleCreatedBy")
+  auditLogs      AuditLog[]
+
+  @@map("users")
+}
+
+model Permission {
+  id          String @id @default(cuid())
+  code        String @unique // e.g. "patient.read", "invoice.void"
+  category    String
+  description String?
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model Role {
+  id       String  @id @default(cuid())
+  // NULL entityId = a system role template usable at any entity.
+  // Non-null = a custom role scoped to one entity.
+  entityId String?
+  entity   Entity? @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  name     String
+  isSystem Boolean @default(false)
+
+  createdById String?
+  createdBy   User?   @relation("RoleCreatedBy", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  permissions RolePermission[]
+  userAccess  UserEntityAccess[]
+
+  @@unique([entityId, name])
+  @@map("roles")
+}
+
+model RolePermission {
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserEntityAccess {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entityId String
+  entity   Entity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  roleId   String
+  role     Role   @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  grantedById String?
+  grantedAt   DateTime @default(now())
+
+  @@unique([userId, entityId, roleId])
+  @@index([entityId])
+  @@map("user_entity_access")
+}
+
+// ---------------------------------------------------------------------------
+// Doctors & Staff
+// ---------------------------------------------------------------------------
+
+model Doctor {
+  id                     String  @id @default(cuid())
+  userId                 String? @unique
+  user                   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  fullName               String
+  registrationNumber     String  @unique
+  qualificationsJson     Json?
+  specialtiesJson        Json?
+  defaultConsultationFee Decimal @default(0) @db.Decimal(12, 2)
+  isActive               Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  availability DoctorAvailability[]
+  leaves       DoctorLeave[]
+  assignments  DoctorEntityAssignment[]
+
+  @@map("doctors")
+}
+
+model DoctorEntityAssignment {
+  id         String   @id @default(cuid())
+  doctorId   String
+  doctor     Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  entityId   String
+  entity     Entity   @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now())
+
+  @@unique([doctorId, entityId])
+  @@index([entityId])
+  @@map("doctor_entity_assignments")
+}
+
+model Staff {
+  id           String  @id @default(cuid())
+  userId       String? @unique
+  user         User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  fullName     String
+  designation  String
+  employeeCode String  @unique
+  isActive     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignments StaffEntityAssignment[]
+
+  @@map("staff")
+}
+
+model StaffEntityAssignment {
+  id         String   @id @default(cuid())
+  staffId    String
+  staff      Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  entityId   String
+  entity     Entity   @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now())
+
+  @@unique([staffId, entityId])
+  @@index([entityId])
+  @@map("staff_entity_assignments")
+}
+
+model DoctorAvailability {
+  id                 String    @id @default(cuid())
+  doctorId           String
+  doctor             Doctor    @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  entityId           String
+  entity             Entity    @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  weekday             Int // 0=Sunday .. 6=Saturday
+  startTime           String // "09:00" (stored as HH:mm; date-agnostic recurring slot)
+  endTime             String // "17:00"
+  slotDurationMinutes Int       @default(15)
+  breakStart          String?
+  breakEnd            String?
+  isRecurring         Boolean   @default(true)
+  effectiveFrom       DateTime  @db.Date
+  effectiveTo         DateTime? @db.Date
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([doctorId, entityId])
+  @@map("doctor_availability")
+}
+
+model DoctorLeave {
+  id       String   @id @default(cuid())
+  doctorId String
+  doctor   Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  entityId String
+  entity   Entity   @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  dateFrom DateTime @db.Date
+  dateTo   DateTime @db.Date
+  reason   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([doctorId, entityId])
+  @@map("doctor_leave")
+}
+
+// ---------------------------------------------------------------------------
+// Audit
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  occurredAt   DateTime @default(now())
+  actorUserId  String?
+  actor        User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  entityId     String?
+  entity       Entity?  @relation(fields: [entityId], references: [id], onDelete: SetNull)
+  action       String
+  resourceType String
+  resourceId   String?
+  ipAddress    String?
+  userAgent    String?
+  beforeJson   Json?
+  afterJson    Json?
+
+  @@index([entityId])
+  @@index([actorUserId])
+  @@index([resourceType, resourceId])
+  @@map("audit_logs")
+}

@@ -1,0 +1,9 @@
+{
+  "name": "RHCM — Dental Clinic & Charity Trust Management",
+  "short_name": "RHCM",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f6e94",
+  "icons": []
+}
