@@ -15,12 +15,21 @@ function meta(req: Request) {
   return { ip: req.ip, userAgent: req.get("user-agent") ?? undefined };
 }
 
+// Read directly from process.env, not ConfigService: decorator arguments
+// evaluate when this module is first required, which happens before Nest
+// bootstraps ConfigModule's .env file loading. A real OS-level env var
+// (as opposed to a .env file) is still present at this point, which is
+// how the e2e test suite raises this limit — see test/env-setup.ts.
+const LOGIN_THROTTLE_LIMIT = Number(process.env.AUTH_LOGIN_THROTTLE_LIMIT ?? 10);
+const LOGIN_THROTTLE_TTL_MS = Number(process.env.AUTH_LOGIN_THROTTLE_TTL_MS ?? 60_000);
+const PASSWORD_THROTTLE_LIMIT = Number(process.env.AUTH_PASSWORD_THROTTLE_LIMIT ?? 5);
+
 @Controller("auth")
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Public()
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Throttle({ default: { limit: LOGIN_THROTTLE_LIMIT, ttl: LOGIN_THROTTLE_TTL_MS } })
   @HttpCode(200)
   @Post("login")
   login(@Body() dto: LoginDto, @Req() req: Request) {
@@ -28,7 +37,7 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Throttle({ default: { limit: LOGIN_THROTTLE_LIMIT, ttl: LOGIN_THROTTLE_TTL_MS } })
   @HttpCode(200)
   @Post("mfa/verify")
   verifyMfa(@Body() dto: MfaVerifyDto, @Req() req: Request) {
@@ -44,7 +53,7 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: PASSWORD_THROTTLE_LIMIT, ttl: LOGIN_THROTTLE_TTL_MS } })
   @HttpCode(200)
   @Post("password/forgot")
   forgotPassword(@Body() dto: PasswordForgotDto) {
