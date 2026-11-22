@@ -29,15 +29,18 @@ model Entity {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  settings            EntitySettings?
-  userAccess          UserEntityAccess[]
-  roles               Role[]
-  resources           ClinicResource[]
-  availability        DoctorAvailability[]
-  doctorLeaves        DoctorLeave[]
-  doctorAssignments   DoctorEntityAssignment[]
-  staffAssignments    StaffEntityAssignment[]
-  auditLogs           AuditLog[]
+  settings               EntitySettings?
+  userAccess             UserEntityAccess[]
+  roles                  Role[]
+  resources              ClinicResource[]
+  availability           DoctorAvailability[]
+  doctorLeaves           DoctorLeave[]
+  doctorAssignments      DoctorEntityAssignment[]
+  staffAssignments       StaffEntityAssignment[]
+  auditLogs              AuditLog[]
+  temporaryRegistrations TemporaryRegistration[]
+  patientEntityLinks     PatientEntityLink[]
+  consentRecords         ConsentRecord[]
 
   @@map("entities")
 }
@@ -55,6 +58,8 @@ model EntitySettings {
   receiptNextSeq  Int    @default(1)
   estimatePrefix  String @default("EST")
   estimateNextSeq Int    @default(1)
+  tempRegPrefix   String @default("TMP")
+  tempRegNextSeq  Int    @default(1)
 
   gstin       String?
   addressJson Json?
@@ -109,26 +114,28 @@ model User {
   failedLoginCount   Int        @default(0)
   lockedUntil        DateTime?
 
-  passwordResetTokenHash  String?
-  passwordResetExpiresAt  DateTime?
+  passwordResetTokenHash String?
+  passwordResetExpiresAt DateTime?
 
   pendingMfaSecretEncrypted String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  entityAccess   UserEntityAccess[]
-  doctorProfile  Doctor?
-  staffProfile   Staff?
-  rolesCreated   Role[]             @relation("RoleCreatedBy")
-  auditLogs      AuditLog[]
+  entityAccess                  UserEntityAccess[]
+  doctorProfile                 Doctor?
+  staffProfile                  Staff?
+  rolesCreated                  Role[]                  @relation("RoleCreatedBy")
+  auditLogs                     AuditLog[]
+  consentsCaptured              ConsentRecord[]
+  temporaryRegistrationsCreated TemporaryRegistration[]
 
   @@map("users")
 }
 
 model Permission {
-  id          String @id @default(cuid())
-  code        String @unique // e.g. "patient.read", "invoice.void"
+  id          String  @id @default(cuid())
+  code        String  @unique // e.g. "patient.read", "invoice.void"
   category    String
   description String?
 
@@ -204,9 +211,10 @@ model Doctor {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  availability DoctorAvailability[]
-  leaves       DoctorLeave[]
-  assignments  DoctorEntityAssignment[]
+  availability                  DoctorAvailability[]
+  leaves                        DoctorLeave[]
+  assignments                   DoctorEntityAssignment[]
+  preferredForTempRegistrations TemporaryRegistration[]
 
   @@map("doctors")
 }
@@ -255,11 +263,11 @@ model StaffEntityAssignment {
 }
 
 model DoctorAvailability {
-  id                 String    @id @default(cuid())
-  doctorId           String
-  doctor             Doctor    @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  entityId           String
-  entity             Entity    @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  id                  String    @id @default(cuid())
+  doctorId            String
+  doctor              Doctor    @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  entityId            String
+  entity              Entity    @relation(fields: [entityId], references: [id], onDelete: Cascade)
   weekday             Int // 0=Sunday .. 6=Saturday
   startTime           String // "09:00" (stored as HH:mm; date-agnostic recurring slot)
   endTime             String // "17:00"
@@ -316,4 +324,157 @@ model AuditLog {
   @@index([actorUserId])
   @@index([resourceType, resourceId])
   @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Patients (Stage 2)
+// ---------------------------------------------------------------------------
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  UNSPECIFIED
+}
+
+enum PatientStatus {
+  ACTIVE
+  INACTIVE
+  DECEASED
+  MERGED
+}
+
+enum TempRegistrationStatus {
+  OPEN
+  CHECKED_IN
+  EXPIRED
+  DISCARDED
+}
+
+enum ConsentType {
+  TREATMENT
+  DATA_SHARING
+  CROSS_ENTITY_IDENTITY_LINKING
+  PHOTO_VIDEO
+  MARKETING
+}
+
+/// Single-row counter for the global, never-reused UHID sequence. Patients
+/// are not entity-owned (see docs/ARCHITECTURE.md Section 3.1), so this is
+/// deliberately separate from the per-entity counters on EntitySettings.
+model UhidCounter {
+  id      Int    @id @default(1)
+  prefix  String @default("RD")
+  nextSeq Int    @default(1)
+
+  @@map("uhid_counter")
+}
+
+model Patient {
+  id   String @id @default(cuid())
+  uhid String @unique
+
+  fullName String
+  dob      DateTime? @db.Date
+  ageYears Int? // captured when exact DOB is unknown
+  gender   Gender    @default(UNSPECIFIED)
+
+  phone String?
+  email String?
+
+  addressJson          Json?
+  emergencyContactJson Json?
+  guardianJson         Json? // required in practice for minors; enforced in the service layer, not the schema
+
+  medicalAlertsJson  Json?
+  allergiesJson      Json?
+  medicalHistoryJson Json?
+
+  status              PatientStatus @default(ACTIVE)
+  mergedIntoPatientId String?
+  mergedIntoPatient   Patient?      @relation("PatientMerge", fields: [mergedIntoPatientId], references: [id])
+  mergedFromPatients  Patient[]     @relation("PatientMerge")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entityLinks            PatientEntityLink[]
+  consentRecords         ConsentRecord[]
+  temporaryRegistrations TemporaryRegistration[]
+
+  @@index([fullName])
+  @@index([phone])
+  @@map("patients")
+}
+
+model PatientEntityLink {
+  id           String   @id @default(cuid())
+  patientId    String
+  patient      Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  entityId     String
+  entity       Entity   @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  firstVisitAt DateTime @default(now())
+
+  @@unique([patientId, entityId])
+  @@index([entityId])
+  @@map("patient_entity_links")
+}
+
+model TemporaryRegistration {
+  id     String @id @default(cuid())
+  // e.g. "TMP-000123" — its own per-entity sequence, a visually distinct
+  // format from UHID so the two are never confused. Scoped to (entityId,
+  // tempId) rather than globally unique: the counter lives on each
+  // entity's EntitySettings row, so two entities both starting from
+  // TMP-000001 is expected, not a collision.
+  tempId String
+
+  entityId String
+  entity   Entity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  fullName    String
+  phone       String?
+  dob         DateTime? @db.Date
+  ageYears    Int?
+  gender      Gender    @default(UNSPECIFIED)
+  visitReason String?
+
+  preferredDoctorId String?
+  preferredDoctor   Doctor? @relation(fields: [preferredDoctorId], references: [id], onDelete: SetNull)
+
+  status TempRegistrationStatus @default(OPEN)
+
+  matchedPatientId String?
+  matchedPatient   Patient? @relation(fields: [matchedPatientId], references: [id], onDelete: SetNull)
+
+  createdById String?
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([entityId, tempId])
+  @@index([phone])
+  @@map("temporary_registrations")
+}
+
+model ConsentRecord {
+  id          String      @id @default(cuid())
+  patientId   String
+  patient     Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  entityId    String
+  entity      Entity      @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  consentType ConsentType
+  granted     Boolean
+  grantedAt   DateTime    @default(now())
+
+  capturedById String?
+  capturedBy   User?   @relation(fields: [capturedById], references: [id], onDelete: SetNull)
+
+  documentRef String?
+  version     Int     @default(1)
+
+  @@index([patientId])
+  @@index([entityId])
+  @@map("consent_records")
 }

@@ -18,6 +18,12 @@ export class DoctorsController {
     return this.doctorsService.listForEntity(entityId);
   }
 
+  @RequirePermissions(PERMISSIONS.PATIENT_READ)
+  @Get("directory")
+  directory(@Query("entityId") entityId: string) {
+    return this.doctorsService.directory(entityId);
+  }
+
   @RequirePermissions(PERMISSIONS.DOCTOR_MANAGE)
   @Post()
   create(@Body() dto: CreateDoctorDto, @CurrentUser() user: AuthenticatedUser) {

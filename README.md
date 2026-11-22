@@ -4,10 +4,17 @@ A multi-entity, production-oriented clinic management system for a Main
 Dental Clinic (10 chairs, 2 OTs) and a legally separate Charity Trust (3
 chairs), built as described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-**Stage 1** (this state of the repo) covers: database architecture, entity
-management, session-based authentication with mandatory MFA for privileged
-roles, role-based + entity-scoped access control, and doctor/staff
-management. Later stages (patient registration, scheduling, clinical
+**Stage 1** covers: database architecture, entity management, session-based
+authentication with mandatory MFA for privileged roles, role-based +
+entity-scoped access control, and doctor/staff management.
+
+**Stage 2** (this state of the repo) adds: temporary registration (name,
+phone, DOB/age, gender, visit reason, preferred doctor — incomplete data
+allowed), transactional/never-reused UHID generation, patient search
+(UHID / temp ID / name / phone, with duplicate-match surfacing), and
+check-in — matching an existing patient or minting a new UHID, with
+cross-entity identity linking gated behind the `patient.cross_entity_link`
+permission and a recorded consent. Later stages (scheduling, clinical
 records, billing, documents/reporting) build on this foundation — see
 `docs/ARCHITECTURE.md` Section 9 for the full plan.
 
@@ -42,9 +49,23 @@ cp apps/web/.env.local.example apps/web/.env.local
 # Build the shared/database packages first (apps consume their compiled dist/)
 pnpm --filter @rhcm/shared build
 pnpm --filter @rhcm/database generate
-pnpm db:migrate     # applies Stage 1 migrations
-pnpm db:seed        # synthetic dev/test users across all 10 roles — see below
+pnpm db:migrate     # applies all migrations
+pnpm db:seed        # synthetic dev/test users, patients, etc. — see below
 ```
+
+> `prisma migrate dev` refuses to run in a non-interactive terminal (CI, some
+> sandboxes) whenever it has a warning to show (e.g. a new unique
+> constraint). If you hit `"non-interactive, which is not supported"` there,
+> generate the migration's SQL from the schema diff and apply it directly
+> instead of trying to force interactivity:
+> ```bash
+> cd packages/database
+> mkdir -p prisma/migrations/$(date +%Y%m%d%H%M%S)_your_migration_name
+> npx prisma migrate diff --from-schema-datasource prisma/schema.prisma \
+>   --to-schema-datamodel prisma/schema.prisma --script \
+>   > prisma/migrations/<the_folder_above>/migration.sql
+> npx prisma migrate deploy
+> ```
 
 ### Running
 
@@ -83,6 +104,21 @@ authenticator app:
 node -e "console.log(require('otplib').authenticator.generate('JBSWY3DPEHPK3PXP'))"
 ```
 
+### Synthetic seed patients
+
+The seed also creates a few patients (at the Clinic unless noted) to
+demonstrate Stage 2 behavior out of the box:
+
+| UHID | Name | Notes |
+|---|---|---|
+| RD-000001 | Ravi Kumar | Has a `CHECKED_IN` temp registration (`TMP-000001`) |
+| RD-000002 / RD-000003 | Priya Sharma (×2) | Deliberate same-name duplicates, for exercising duplicate-match search |
+| RD-000004 | Arun Das | Linked to **both** Clinic and Trust, with the `CROSS_ENTITY_IDENTITY_LINKING` consent record the link required |
+
+Plus one `OPEN` (not yet checked in) temp registration, `TMP-000002`
+("Walk-in Enquiry"), with only a name and phone — demonstrating that
+registration is allowed to be incomplete.
+
 ### First production Super Administrator
 
 Never seed synthetic data in production. Instead:
@@ -120,6 +156,20 @@ real database and a real NestJS instance:
   can't be edited
 - the password reset cycle end-to-end
 - doctor creation and availability replacement
+
+`apps/api/test/patients.e2e-spec.ts` (Stage 2) additionally covers:
+
+- incomplete temporary registration (name only)
+- per-entity temp-ID numbering that doesn't collide across entities
+- UHID uniqueness under **concurrent** check-ins (8 parallel requests)
+- duplicate-name search surfacing both matches
+- that the default search never returns another entity's patients
+- cross-entity search denied without `patient.cross_entity_link`, and that
+  it correctly lists which entities a candidate is already linked to
+- cross-entity check-in rejected without consent, accepted (same UHID
+  preserved) with consent recorded
+- entity-scoped check-in rejection (wrong entity) and patient-detail 404
+  when there's no link to the requested entity
 
 ## Project layout
 

@@ -14,6 +14,7 @@ import {
   type SystemRoleName,
 } from "@rhcm/shared";
 import { SecretCipher } from "./secret-cipher";
+import { nextTempRegistrationId, nextUhid } from "../src/sequences";
 import { PrismaClient, ResourceType } from "../generated/client";
 
 const prisma = new PrismaClient();
@@ -70,6 +71,12 @@ async function main() {
     }
   }
   console.log(`Seeded entities: ${Object.keys(entities).join(", ")}`);
+
+  await prisma.uhidCounter.upsert({
+    where: { id: 1 },
+    update: {},
+    create: { id: 1, prefix: "RD", nextSeq: 1 },
+  });
 
   // --- Permissions ----------------------------------------------------------
   for (const perm of PERMISSION_CATALOG) {
@@ -221,6 +228,127 @@ async function main() {
   const management = await upsertUser("management@rhcm.test");
   await grantAccess(management.id, "CLINIC", SYSTEM_ROLES.MANAGEMENT);
   await grantAccess(management.id, "TRUST", SYSTEM_ROLES.MANAGEMENT);
+
+  // --- Patients, temp registrations, consent (Stage 2) ---------------------
+  async function findOrCreatePatient(opts: {
+    phone: string;
+    fullName: string;
+    gender?: "MALE" | "FEMALE" | "OTHER" | "UNSPECIFIED";
+    dob?: Date;
+    allergiesJson?: unknown;
+    medicalAlertsJson?: unknown;
+  }) {
+    const existing = await prisma.patient.findFirst({ where: { phone: opts.phone } });
+    if (existing) return existing;
+    return prisma.$transaction(async (tx) => {
+      const uhid = await nextUhid(tx);
+      return tx.patient.create({
+        data: {
+          uhid,
+          fullName: opts.fullName,
+          phone: opts.phone,
+          gender: opts.gender ?? "UNSPECIFIED",
+          dob: opts.dob,
+          allergiesJson: opts.allergiesJson,
+          medicalAlertsJson: opts.medicalAlertsJson,
+        },
+      });
+    });
+  }
+
+  async function linkPatientToEntity(patientId: string, entityId: string) {
+    await prisma.patientEntityLink.upsert({
+      where: { patientId_entityId: { patientId, entityId } },
+      update: {},
+      create: { patientId, entityId },
+    });
+  }
+
+  const ravi = await findOrCreatePatient({
+    phone: "+91-9000000001",
+    fullName: "Ravi Kumar",
+    gender: "MALE",
+    dob: new Date("1990-04-12"),
+  });
+  await linkPatientToEntity(ravi.id, entities.CLINIC.id);
+
+  // Deliberate near-duplicate pair for exercising duplicate-match search:
+  // same name, different phone/patient.
+  const priya1 = await findOrCreatePatient({ phone: "+91-9000000002", fullName: "Priya Sharma", gender: "FEMALE" });
+  await linkPatientToEntity(priya1.id, entities.CLINIC.id);
+  const priya2 = await findOrCreatePatient({ phone: "+91-9000000003", fullName: "Priya Sharma", gender: "FEMALE" });
+  await linkPatientToEntity(priya2.id, entities.CLINIC.id);
+
+  // A patient already linked to the Trust, available for a cross-entity
+  // check-in match demo at the Clinic.
+  const arun = await findOrCreatePatient({
+    phone: "+91-9000000004",
+    fullName: "Arun Das",
+    gender: "MALE",
+    allergiesJson: ["Penicillin"],
+    medicalAlertsJson: ["Hypertension"],
+  });
+  await linkPatientToEntity(arun.id, entities.TRUST.id);
+
+  // Demonstrates the authorized cross-entity identity link: Arun is also
+  // seen at the Clinic, with the consent record the match requires.
+  await linkPatientToEntity(arun.id, entities.CLINIC.id);
+  const existingConsent = await prisma.consentRecord.findFirst({
+    where: { patientId: arun.id, entityId: entities.CLINIC.id, consentType: "CROSS_ENTITY_IDENTITY_LINKING" },
+  });
+  if (!existingConsent) {
+    await prisma.consentRecord.create({
+      data: {
+        patientId: arun.id,
+        entityId: entities.CLINIC.id,
+        consentType: "CROSS_ENTITY_IDENTITY_LINKING",
+        granted: true,
+        capturedById: superAdmin.id,
+      },
+    });
+  }
+
+  // Completed (checked-in) temp registration at the Clinic.
+  let checkedInReg = await prisma.temporaryRegistration.findFirst({
+    where: { entityId: entities.CLINIC.id, matchedPatientId: ravi.id, status: "CHECKED_IN" },
+  });
+  if (!checkedInReg) {
+    const checkedInTempId = await nextTempRegistrationId(prisma, entities.CLINIC.id);
+    checkedInReg = await prisma.temporaryRegistration.create({
+      data: {
+        tempId: checkedInTempId,
+        entityId: entities.CLINIC.id,
+        fullName: ravi.fullName,
+        phone: ravi.phone,
+        visitReason: "Tooth pain, lower right molar",
+        preferredDoctorId: doctor.id,
+        status: "CHECKED_IN",
+        matchedPatientId: ravi.id,
+        createdById: receptionist.id,
+      },
+    });
+  }
+
+  // Open, deliberately incomplete temp registration — only a name and
+  // phone were captured, matching "allow incomplete registration".
+  let openReg = await prisma.temporaryRegistration.findFirst({
+    where: { entityId: entities.CLINIC.id, phone: "+91-9000000099", status: "OPEN" },
+  });
+  if (!openReg) {
+    const openTempId = await nextTempRegistrationId(prisma, entities.CLINIC.id);
+    openReg = await prisma.temporaryRegistration.create({
+      data: {
+        tempId: openTempId,
+        entityId: entities.CLINIC.id,
+        fullName: "Walk-in Enquiry",
+        phone: "+91-9000000099",
+        status: "OPEN",
+        createdById: receptionist.id,
+      },
+    });
+  }
+
+  console.log(`Seeded synthetic patients (UHIDs: ${ravi.uhid}, ${priya1.uhid}, ${priya2.uhid}, ${arun.uhid}) and temp registrations (${checkedInReg.tempId} checked in, ${openReg.tempId} open).`);
 
   console.log("Seeded synthetic users for all 10 roles.");
   console.log(`Dev login password for every seeded user: ${DEV_PASSWORD}`);

@@ -19,6 +19,15 @@ export class DoctorsService {
     return doctors;
   }
 
+  /** Minimal, low-sensitivity fields for pick-a-doctor dropdowns (registration, scheduling) — not the admin management list. */
+  async directory(entityId: string) {
+    return this.prisma.client.doctor.findMany({
+      where: { assignments: { some: { entityId } }, isActive: true },
+      select: { id: true, fullName: true, specialtiesJson: true },
+      orderBy: { fullName: "asc" },
+    });
+  }
+
   async create(dto: CreateDoctorDto, actorUserId: string) {
     const existing = await this.prisma.client.doctor.findUnique({ where: { registrationNumber: dto.registrationNumber } });
     if (existing) throw new ConflictException("A doctor with this registration number already exists");

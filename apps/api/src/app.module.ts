@@ -9,6 +9,7 @@ import { EntitiesModule } from "./entities/entities.module";
 import { RolesModule } from "./roles/roles.module";
 import { UsersModule } from "./users/users.module";
 import { StaffModule } from "./staff/staff.module";
+import { PatientsModule } from "./patients/patients.module";
 import { SessionAuthGuard } from "./common/guards/session-auth.guard";
 import { PermissionsGuard } from "./common/guards/permissions.guard";
 
@@ -23,6 +24,7 @@ import { PermissionsGuard } from "./common/guards/permissions.guard";
     RolesModule,
     UsersModule,
     StaffModule,
+    PatientsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

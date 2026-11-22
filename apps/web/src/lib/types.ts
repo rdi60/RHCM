@@ -86,6 +86,65 @@ export interface StaffRow {
   userId: string | null;
 }
 
+export type Gender = "MALE" | "FEMALE" | "OTHER" | "UNSPECIFIED";
+export type TempRegistrationStatus = "OPEN" | "CHECKED_IN" | "EXPIRED" | "DISCARDED";
+
+export interface PatientEntityLinkRow {
+  id: string;
+  entityId: string;
+  entity: { id: string; code: string; displayName: string };
+  firstVisitAt: string;
+}
+
+export interface PatientRow {
+  id: string;
+  uhid: string;
+  fullName: string;
+  dob: string | null;
+  ageYears: number | null;
+  gender: Gender;
+  phone: string | null;
+  email: string | null;
+  addressJson: Record<string, unknown> | null;
+  emergencyContactJson: Record<string, unknown> | null;
+  guardianJson: Record<string, unknown> | null;
+  medicalAlertsJson: string[] | null;
+  allergiesJson: string[] | null;
+  medicalHistoryJson: string[] | null;
+  status: "ACTIVE" | "INACTIVE" | "DECEASED" | "MERGED";
+  entityLinks?: PatientEntityLinkRow[];
+}
+
+export interface TemporaryRegistrationRow {
+  id: string;
+  tempId: string;
+  entityId: string;
+  fullName: string;
+  phone: string | null;
+  dob: string | null;
+  ageYears: number | null;
+  gender: Gender;
+  visitReason: string | null;
+  preferredDoctorId: string | null;
+  preferredDoctor?: { id: string; fullName: string } | null;
+  status: TempRegistrationStatus;
+  matchedPatientId: string | null;
+  createdAt: string;
+}
+
+export interface PatientSearchResult {
+  patients: PatientRow[];
+  temporaryRegistrations: TemporaryRegistrationRow[];
+}
+
+export interface CrossEntityMatch {
+  id: string;
+  uhid: string;
+  fullName: string;
+  phone: string | null;
+  linkedEntities: string[];
+}
+
 export interface AuditLogRow {
   id: string;
   occurredAt: string;
