@@ -8,8 +8,19 @@ import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { PERMISSIONS } from "@rhcm/shared";
 import { formatIstDate, formatIstDateTime } from "@/lib/ist";
-import type { AppointmentRow, PatientRow, TreatmentPlanRow, VisitRow } from "@/lib/types";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import type {
+  AppointmentRow,
+  PatientRow,
+  TreatmentPlanRow,
+  VisitRow,
+} from "@/lib/types";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,9 +29,16 @@ import { TreatmentPlanCard } from "@/components/clinical/treatment-plan-card";
 import { BillingTab } from "@/components/billing/billing-tab";
 import { DocumentsSection } from "@/components/documents/documents-section";
 import { ConsentSection } from "@/components/documents/consent-section";
-import { cn } from "@/lib/utils";
+import { cn, formatStatus } from "@/lib/utils";
 
-const TABS = ["Overview", "Visits", "Appointments", "Treatment Plans", "Billing", "Documents"] as const;
+const TABS = [
+  "Overview",
+  "Visits",
+  "Appointments",
+  "Treatment Plans",
+  "Billing",
+  "Documents",
+] as const;
 type Tab = (typeof TABS)[number];
 
 export default function PatientDashboardPage() {
@@ -33,36 +51,60 @@ export default function PatientDashboardPage() {
 
   const patientQuery = useQuery({
     queryKey: ["patient", params.id, selectedEntityId],
-    queryFn: () => api.get<PatientRow>(`/patients/${params.id}?entityId=${selectedEntityId}`),
+    queryFn: () =>
+      api.get<PatientRow>(
+        `/patients/${params.id}?entityId=${selectedEntityId}`,
+      ),
     enabled: Boolean(selectedEntityId),
   });
 
   const visitsQuery = useQuery({
     queryKey: ["patient-visits", params.id, selectedEntityId],
-    queryFn: () => api.get<VisitRow[]>(`/visits?entityId=${selectedEntityId}&patientId=${params.id}`),
+    queryFn: () =>
+      api.get<VisitRow[]>(
+        `/visits?entityId=${selectedEntityId}&patientId=${params.id}`,
+      ),
     enabled: Boolean(selectedEntityId) && tab === "Visits",
   });
 
   const appointmentsQuery = useQuery({
     queryKey: ["patient-appointments", params.id, selectedEntityId],
-    queryFn: () => api.get<AppointmentRow[]>(`/appointments?entityId=${selectedEntityId}&patientId=${params.id}`),
+    queryFn: () =>
+      api.get<AppointmentRow[]>(
+        `/appointments?entityId=${selectedEntityId}&patientId=${params.id}`,
+      ),
     enabled: Boolean(selectedEntityId) && tab === "Appointments",
   });
 
   const plansQuery = useQuery({
     queryKey: ["treatment-plans", params.id, selectedEntityId],
-    queryFn: () => api.get<TreatmentPlanRow[]>(`/patients/${params.id}/treatment-plans?entityId=${selectedEntityId}`),
+    queryFn: () =>
+      api.get<TreatmentPlanRow[]>(
+        `/patients/${params.id}/treatment-plans?entityId=${selectedEntityId}`,
+      ),
     enabled: Boolean(selectedEntityId) && tab === "Treatment Plans",
   });
 
   const updateMutation = useMutation({
-    mutationFn: (payload: Record<string, unknown>) => api.patch(`/patients/${params.id}`, { entityId: selectedEntityId, ...payload }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["patient", params.id, selectedEntityId] }),
-    onError: (err) => setError(err instanceof ApiError ? err.message : "Failed to save"),
+    mutationFn: (payload: Record<string, unknown>) =>
+      api.patch(`/patients/${params.id}`, {
+        entityId: selectedEntityId,
+        ...payload,
+      }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ["patient", params.id, selectedEntityId],
+      }),
+    onError: (err) =>
+      setError(err instanceof ApiError ? err.message : "Failed to save"),
   });
 
-  if (patientQuery.isLoading) return <p className="text-muted-foreground">Loading…</p>;
-  if (!patientQuery.data) return <p className="text-destructive">Patient not found for this entity.</p>;
+  if (patientQuery.isLoading)
+    return <p className="text-muted-foreground">Loading…</p>;
+  if (!patientQuery.data)
+    return (
+      <p className="text-destructive">Patient not found for this entity.</p>
+    );
   const patient = patientQuery.data;
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -83,13 +125,18 @@ export default function PatientDashboardPage() {
   }
 
   return (
-    <div className={cn("flex flex-col gap-6", tab === "Billing" || tab === "Documents" ? "max-w-5xl" : "max-w-3xl")}>
+    <div
+      className={cn(
+        "flex flex-col gap-6",
+        tab === "Billing" || tab === "Documents" ? "max-w-5xl" : "max-w-3xl",
+      )}
+    >
       <div className="flex items-center gap-3">
         <h1 className="text-heading-page">{patient.fullName}</h1>
         <Badge>{patient.uhid}</Badge>
       </div>
 
-      {(patient.allergiesJson?.length || patient.medicalAlertsJson?.length) ? (
+      {patient.allergiesJson?.length || patient.medicalAlertsJson?.length ? (
         <div className="flex flex-wrap gap-2">
           {patient.allergiesJson?.map((a) => (
             <Badge key={a} variant="destructive">
@@ -111,7 +158,9 @@ export default function PatientDashboardPage() {
             onClick={() => setTab(t)}
             className={cn(
               "shrink-0 whitespace-nowrap rounded-button px-3 py-1.5 text-sm font-medium transition-colors",
-              tab === t ? "bg-peach text-peach-foreground shadow-subtle" : "text-muted-foreground hover:bg-lavender hover:text-foreground",
+              tab === t
+                ? "bg-peach text-peach-foreground shadow-subtle"
+                : "text-muted-foreground hover:bg-lavender hover:text-foreground",
             )}
           >
             {t}
@@ -125,8 +174,15 @@ export default function PatientDashboardPage() {
             <CardHeader>
               <CardTitle>Details</CardTitle>
               <CardDescription>
-                {patient.gender !== "UNSPECIFIED" ? patient.gender.charAt(0) + patient.gender.slice(1).toLowerCase() : "Gender not specified"}
-                {patient.dob ? ` · DOB ${new Date(patient.dob).toLocaleDateString("en-IN")}` : patient.ageYears ? ` · Age ${patient.ageYears}` : ""}
+                {patient.gender !== "UNSPECIFIED"
+                  ? patient.gender.charAt(0) +
+                    patient.gender.slice(1).toLowerCase()
+                  : "Gender not specified"}
+                {patient.dob
+                  ? ` · DOB ${new Date(patient.dob).toLocaleDateString("en-IN")}`
+                  : patient.ageYears
+                    ? ` · Age ${patient.ageYears}`
+                    : ""}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -135,20 +191,43 @@ export default function PatientDashboardPage() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor="phone">Phone</Label>
-                      <Input id="phone" name="phone" defaultValue={patient.phone ?? ""} />
+                      <Input
+                        id="phone"
+                        name="phone"
+                        defaultValue={patient.phone ?? ""}
+                      />
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor="email">Email</Label>
-                      <Input id="email" name="email" type="email" defaultValue={patient.email ?? ""} />
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        defaultValue={patient.email ?? ""}
+                      />
                     </div>
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="allergies">Allergies (comma-separated)</Label>
-                    <Input id="allergies" name="allergies" defaultValue={(patient.allergiesJson ?? []).join(", ")} />
+                    <Label htmlFor="allergies">
+                      Allergies (comma-separated)
+                    </Label>
+                    <Input
+                      id="allergies"
+                      name="allergies"
+                      defaultValue={(patient.allergiesJson ?? []).join(", ")}
+                    />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="medicalAlerts">Medical alerts (comma-separated)</Label>
-                    <Input id="medicalAlerts" name="medicalAlerts" defaultValue={(patient.medicalAlertsJson ?? []).join(", ")} />
+                    <Label htmlFor="medicalAlerts">
+                      Medical alerts (comma-separated)
+                    </Label>
+                    <Input
+                      id="medicalAlerts"
+                      name="medicalAlerts"
+                      defaultValue={(patient.medicalAlertsJson ?? []).join(
+                        ", ",
+                      )}
+                    />
                   </div>
                   {error && <p className="text-sm text-destructive">{error}</p>}
                   <div>
@@ -189,17 +268,26 @@ export default function PatientDashboardPage() {
             <CardTitle>Visit history</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
-            {visitsQuery.data?.length === 0 && <p className="text-sm text-muted-foreground">No visits yet.</p>}
+            {visitsQuery.data?.length === 0 && (
+              <p className="text-sm text-muted-foreground">No visits yet.</p>
+            )}
             {[...(visitsQuery.data ?? [])].reverse().map((v) => (
-              <Link key={v.id} href={`/visits/${v.id}`} className="flex items-center justify-between rounded-button border border-border bg-card p-3 text-sm transition-colors hover:border-primary/20 hover:bg-lavender">
+              <Link
+                key={v.id}
+                href={`/visits/${v.id}`}
+                className="flex items-center justify-between rounded-button border border-border bg-card p-3 text-sm transition-colors hover:border-primary/20 hover:bg-lavender"
+              >
                 <div>
                   <p className="font-medium">{v.visitNumber}</p>
                   <p className="text-muted-foreground">
-                    {formatIstDateTime(v.checkedInAt)} {v.doctor ? `· ${v.doctor.fullName}` : ""}
+                    {formatIstDateTime(v.checkedInAt)}{" "}
+                    {v.doctor ? `· ${v.doctor.fullName}` : ""}
                     {v.chiefComplaint ? ` · ${v.chiefComplaint}` : ""}
                   </p>
                 </div>
-                <Badge variant={v.status === "COMPLETED" ? "success" : "muted"}>{v.status.replace("_", " ")}</Badge>
+                <Badge variant={v.status === "COMPLETED" ? "success" : "muted"}>
+                  {formatStatus(v.status)}
+                </Badge>
               </Link>
             ))}
           </CardContent>
@@ -212,16 +300,27 @@ export default function PatientDashboardPage() {
             <CardTitle>Appointment history</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
-            {appointmentsQuery.data?.length === 0 && <p className="text-sm text-muted-foreground">No appointments yet.</p>}
+            {appointmentsQuery.data?.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No appointments yet.
+              </p>
+            )}
             {appointmentsQuery.data?.map((a) => (
-              <Link key={a.id} href={`/appointments/${a.id}`} className="flex items-center justify-between rounded-button border border-border bg-card p-3 text-sm transition-colors hover:border-primary/20 hover:bg-lavender">
+              <Link
+                key={a.id}
+                href={`/appointments/${a.id}`}
+                className="flex items-center justify-between rounded-button border border-border bg-card p-3 text-sm transition-colors hover:border-primary/20 hover:bg-lavender"
+              >
                 <div>
                   <p className="font-medium">{formatIstDateTime(a.startAt)}</p>
                   <p className="text-muted-foreground">
-                    {a.doctor?.fullName} {a.resource ? `· ${a.resource.label ?? `${a.resource.type} ${a.resource.number}`}` : ""}
+                    {a.doctor?.fullName}{" "}
+                    {a.resource
+                      ? `· ${a.resource.label ?? `${a.resource.type} ${a.resource.number}`}`
+                      : ""}
                   </p>
                 </div>
-                <Badge variant="muted">{a.status}</Badge>
+                <Badge variant="muted">{formatStatus(a.status)}</Badge>
               </Link>
             ))}
           </CardContent>
@@ -230,9 +329,17 @@ export default function PatientDashboardPage() {
 
       {tab === "Treatment Plans" && (
         <div className="flex flex-col gap-4">
-          {plansQuery.data?.length === 0 && <p className="text-sm text-muted-foreground">No treatment plans yet.</p>}
+          {plansQuery.data?.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              No treatment plans yet.
+            </p>
+          )}
           {plansQuery.data?.map((plan) => (
-            <TreatmentPlanCard key={plan.id} plan={plan} patientId={params.id} />
+            <TreatmentPlanCard
+              key={plan.id}
+              plan={plan}
+              patientId={params.id}
+            />
           ))}
         </div>
       )}

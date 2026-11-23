@@ -6,12 +6,19 @@ import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { PERMISSIONS } from "@rhcm/shared";
 import type { CreditNoteRow, InvoiceRow } from "@/lib/types";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatIstDate } from "@/lib/ist";
+import { formatStatus } from "@/lib/utils";
 
 export function CreditNotesSection({ patientId }: { patientId: string }) {
   const { selectedEntityId, hasPermission } = useAuth();
@@ -24,35 +31,57 @@ export function CreditNotesSection({ patientId }: { patientId: string }) {
   const queryKey = ["credit-notes", patientId, selectedEntityId];
   const creditNotesQuery = useQuery({
     queryKey,
-    queryFn: () => api.get<CreditNoteRow[]>(`/patients/${patientId}/credit-notes?entityId=${selectedEntityId}`),
+    queryFn: () =>
+      api.get<CreditNoteRow[]>(
+        `/patients/${patientId}/credit-notes?entityId=${selectedEntityId}`,
+      ),
     enabled: Boolean(selectedEntityId),
   });
 
   const invoicesQuery = useQuery({
     queryKey: ["invoices", patientId, selectedEntityId],
-    queryFn: () => api.get<InvoiceRow[]>(`/patients/${patientId}/invoices?entityId=${selectedEntityId}`),
+    queryFn: () =>
+      api.get<InvoiceRow[]>(
+        `/patients/${patientId}/invoices?entityId=${selectedEntityId}`,
+      ),
     enabled: Boolean(selectedEntityId),
   });
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey });
-    queryClient.invalidateQueries({ queryKey: ["invoices", patientId, selectedEntityId] });
+    queryClient.invalidateQueries({
+      queryKey: ["invoices", patientId, selectedEntityId],
+    });
   }
 
   const createMutation = useMutation({
-    mutationFn: (payload: { invoiceId?: string; amount: number; reason: string }) =>
-      api.post(`/patients/${patientId}/credit-notes`, { entityId: selectedEntityId, ...payload }),
+    mutationFn: (payload: {
+      invoiceId?: string;
+      amount: number;
+      reason: string;
+    }) =>
+      api.post(`/patients/${patientId}/credit-notes`, {
+        entityId: selectedEntityId,
+        ...payload,
+      }),
     onSuccess: () => {
       invalidate();
       setShowCreate(false);
     },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "Failed to issue credit note"),
+    onError: (err) =>
+      setError(
+        err instanceof ApiError ? err.message : "Failed to issue credit note",
+      ),
   });
 
   const voidMutation = useMutation({
-    mutationFn: (id: string) => api.post(`/credit-notes/${id}/void`, { entityId: selectedEntityId }),
+    mutationFn: (id: string) =>
+      api.post(`/credit-notes/${id}/void`, { entityId: selectedEntityId }),
     onSuccess: invalidate,
-    onError: (err) => setError(err instanceof ApiError ? err.message : "Failed to void credit note"),
+    onError: (err) =>
+      setError(
+        err instanceof ApiError ? err.message : "Failed to void credit note",
+      ),
   });
 
   function handleCreate(e: FormEvent<HTMLFormElement>) {
@@ -71,7 +100,9 @@ export function CreditNotesSection({ patientId }: { patientId: string }) {
       <CardHeader className="flex-row items-center justify-between space-y-0">
         <div>
           <CardTitle>Credit Notes</CardTitle>
-          <CardDescription>Reduces what a patient owes without reversing a payment allocation.</CardDescription>
+          <CardDescription>
+            Reduces what a patient owes without reversing a payment allocation.
+          </CardDescription>
         </div>
         {canManage && !showCreate && (
           <Button size="sm" onClick={() => setShowCreate(true)}>
@@ -81,11 +112,18 @@ export function CreditNotesSection({ patientId }: { patientId: string }) {
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {showCreate && (
-          <form onSubmit={handleCreate} className="flex flex-col gap-3 rounded-button border border-dashed border-border p-3">
+          <form
+            onSubmit={handleCreate}
+            className="flex flex-col gap-3 rounded-button border border-dashed border-border p-3"
+          >
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="cn-invoice">Invoice (optional)</Label>
-                <select id="cn-invoice" name="invoiceId" className="h-10 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-3 text-sm">
+                <select
+                  id="cn-invoice"
+                  name="invoiceId"
+                  className="h-10 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-3 text-sm"
+                >
                   <option value="">General credit</option>
                   {invoicesQuery.data
                     ?.filter((i) => i.status !== "VOID")
@@ -98,7 +136,14 @@ export function CreditNotesSection({ patientId }: { patientId: string }) {
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="cn-amount">Amount</Label>
-                <Input id="cn-amount" name="amount" type="number" min={0.01} step="0.01" required />
+                <Input
+                  id="cn-amount"
+                  name="amount"
+                  type="number"
+                  min={0.01}
+                  step="0.01"
+                  required
+                />
               </div>
               <div className="flex flex-col gap-1.5 sm:col-span-2">
                 <Label htmlFor="cn-reason">Reason</Label>
@@ -106,36 +151,60 @@ export function CreditNotesSection({ patientId }: { patientId: string }) {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button type="submit" size="sm" disabled={createMutation.isPending}>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={createMutation.isPending}
+              >
                 Issue
               </Button>
-              <Button type="button" size="sm" variant="ghost" onClick={() => setShowCreate(false)}>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setShowCreate(false)}
+              >
                 Cancel
               </Button>
             </div>
           </form>
         )}
 
-        {creditNotesQuery.data?.length === 0 && <p className="text-sm text-muted-foreground">No credit notes yet.</p>}
+        {creditNotesQuery.data?.length === 0 && (
+          <p className="text-sm text-muted-foreground">No credit notes yet.</p>
+        )}
 
-        {creditNotesQuery.data?.map((note) => (
-          <div key={note.id} className="flex items-center justify-between rounded-button border border-border p-3 text-sm">
-            <div>
-              <p className="font-medium">₹{note.amount}</p>
-              <p className="text-muted-foreground">
-                {formatIstDate(note.issuedAt)} · {note.reason}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant={note.status === "VOID" ? "muted" : "default"}>{note.status}</Badge>
-              {canManage && note.status === "ISSUED" && (
-                <Button size="sm" variant="ghost" onClick={() => voidMutation.mutate(note.id)}>
-                  Void
-                </Button>
-              )}
-            </div>
+        {creditNotesQuery.data && creditNotesQuery.data.length > 0 && (
+          <div className="divide-y divide-border text-sm">
+            {creditNotesQuery.data.map((note) => (
+              <div
+                key={note.id}
+                className="flex items-center justify-between py-3 first:pt-0"
+              >
+                <div>
+                  <p className="font-medium">₹{note.amount}</p>
+                  <p className="text-muted-foreground">
+                    {formatIstDate(note.issuedAt)} · {note.reason}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant={note.status === "VOID" ? "muted" : "default"}>
+                    {formatStatus(note.status)}
+                  </Badge>
+                  {canManage && note.status === "ISSUED" && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => voidMutation.mutate(note.id)}
+                    >
+                      Void
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
         {error && <p className="text-sm text-destructive">{error}</p>}
       </CardContent>
     </Card>
