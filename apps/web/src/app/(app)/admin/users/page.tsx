@@ -75,7 +75,7 @@ export default function UsersPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold">Users</h1>
+      <h1 className="text-heading-page">Users</h1>
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <Card>
@@ -96,7 +96,7 @@ export default function UsersPage() {
                 required
                 value={roleId}
                 onChange={(e) => setRoleId(e.target.value)}
-                className="h-10 rounded-md border border-border bg-background px-3 text-sm"
+                className="h-10 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-3 text-sm"
               >
                 <option value="" disabled>
                   Select a role
@@ -113,7 +113,7 @@ export default function UsersPage() {
             </Button>
           </form>
           {inviteResult && (
-            <div className="mt-4 rounded-md border border-border bg-muted/50 p-3 text-sm">
+            <div className="mt-4 rounded-button border border-border bg-muted/50 p-3 text-sm">
               <p className="font-medium">Account created for {inviteResult.email}.</p>
               <p className="text-muted-foreground">
                 Dev-only: share this set-password link (Stage 6 wires this to email automatically):

@@ -134,7 +134,7 @@ export function EstimatesSection({ patientId, catalog, taxProfiles }: { patientI
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {showCreate && (
-          <div className="flex flex-col gap-3 rounded-md border border-dashed border-border p-3">
+          <div className="flex flex-col gap-3 rounded-button border border-dashed border-border p-3">
             <LineItemsEditor mode="estimate" items={draftItems} onChange={setDraftItems} catalog={catalog} taxProfiles={taxProfiles} />
             <div className="flex gap-2">
               <Button size="sm" disabled={createMutation.isPending} onClick={() => createMutation.mutate(draftItems)}>
@@ -150,7 +150,7 @@ export function EstimatesSection({ patientId, catalog, taxProfiles }: { patientI
         {estimatesQuery.data?.length === 0 && <p className="text-sm text-muted-foreground">No estimates yet.</p>}
 
         {estimatesQuery.data?.map((estimate) => (
-          <div key={estimate.id} className="rounded-md border border-border p-3">
+          <div key={estimate.id} className="rounded-button border border-border p-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">
@@ -205,14 +205,14 @@ export function EstimatesSection({ patientId, catalog, taxProfiles }: { patientI
               <Link
                 href={`/estimates/${estimate.id}/print?entityId=${selectedEntityId}`}
                 target="_blank"
-                className="inline-flex h-8 items-center justify-center rounded-md px-3 text-xs font-medium hover:bg-muted"
+                className="inline-flex h-8 items-center justify-center rounded-button px-3 text-xs font-medium transition-colors hover:bg-lavender"
               >
                 Print
               </Link>
             </div>
 
             {revisingId === estimate.id && (
-              <div className="mt-3 flex flex-col gap-3 rounded-md border border-dashed border-border p-3">
+              <div className="mt-3 flex flex-col gap-3 rounded-button border border-dashed border-border p-3">
                 <p className="text-sm font-medium">Revise estimate (creates v{estimate.version + 1}, supersedes this one)</p>
                 <LineItemsEditor mode="estimate" items={draftItems} onChange={setDraftItems} catalog={catalog} taxProfiles={taxProfiles} />
                 <div className="flex gap-2">
@@ -227,7 +227,7 @@ export function EstimatesSection({ patientId, catalog, taxProfiles }: { patientI
             )}
 
             {convertingId === estimate.id && (
-              <div className="mt-3 flex flex-col gap-3 rounded-md border border-dashed border-border p-3">
+              <div className="mt-3 flex flex-col gap-3 rounded-button border border-dashed border-border p-3">
                 <p className="text-sm font-medium">Select quantities to invoice</p>
                 {estimate.items
                   .filter((i) => i.quantity - i.invoicedQuantity > 0)
@@ -240,7 +240,7 @@ export function EstimatesSection({ patientId, catalog, taxProfiles }: { patientI
                         type="number"
                         min={0}
                         max={item.quantity - item.invoicedQuantity}
-                        className="h-8 w-20 rounded-md border border-border bg-background px-2 text-sm"
+                        className="h-8 w-20 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-2 text-sm"
                         value={convertQty[item.id] ?? 0}
                         onChange={(e) => setConvertQty((q) => ({ ...q, [item.id]: Number(e.target.value) || 0 }))}
                       />

@@ -68,7 +68,7 @@ export function ClinicalNotesPanel({ visitId }: { visitId: string }) {
       <CardContent className="flex flex-col gap-3">
         {roots.length === 0 && <p className="text-sm text-muted-foreground">No notes yet.</p>}
         {roots.map((note) => (
-          <div key={note.id} className="rounded-md border border-border p-3">
+          <div key={note.id} className="rounded-button border border-border p-3">
             <div className="flex items-center justify-between">
               <Badge variant="muted">{note.noteType}</Badge>
               <span className="text-xs text-muted-foreground">{formatIstDateTime(note.authoredAt)}</span>
@@ -86,7 +86,7 @@ export function ClinicalNotesPanel({ visitId }: { visitId: string }) {
               (addendumFor === note.id ? (
                 <div className="mt-2 flex flex-col gap-2">
                   <textarea
-                    className="rounded-md border border-border bg-background p-2 text-sm"
+                    className="rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 p-2 text-sm"
                     rows={2}
                     value={addendumBody}
                     onChange={(e) => setAddendumBody(e.target.value)}
@@ -107,7 +107,7 @@ export function ClinicalNotesPanel({ visitId }: { visitId: string }) {
         {canWrite && (
           <form onSubmit={handleSubmit} className="flex flex-col gap-2">
             <textarea
-              className="rounded-md border border-border bg-background p-2 text-sm"
+              className="rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 p-2 text-sm"
               rows={3}
               value={body}
               onChange={(e) => setBody(e.target.value)}

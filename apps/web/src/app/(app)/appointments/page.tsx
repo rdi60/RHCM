@@ -19,12 +19,12 @@ const GRID_END_HOUR = 20;
 const PX_PER_MINUTE = 1.2;
 
 const STATUS_COLORS: Record<string, string> = {
-  BOOKED: "bg-blue-500/15 border-blue-500/40 text-blue-700 dark:text-blue-300",
-  CONFIRMED: "bg-blue-500/15 border-blue-500/40 text-blue-700 dark:text-blue-300",
-  ARRIVED: "bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-300",
-  CHECKED_IN: "bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-300",
-  WAITING: "bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-300",
-  IN_TREATMENT: "bg-violet-500/15 border-violet-500/40 text-violet-700 dark:text-violet-300",
+  BOOKED: "bg-lavender border-primary/20 text-primary",
+  CONFIRMED: "bg-lavender border-primary/20 text-primary",
+  ARRIVED: "bg-peach border-peach-highlight/30 text-peach-highlight",
+  CHECKED_IN: "bg-peach border-peach-highlight/30 text-peach-highlight",
+  WAITING: "bg-peach border-peach-highlight/30 text-peach-highlight",
+  IN_TREATMENT: "bg-primary/15 border-primary/30 text-primary",
   COMPLETED: "bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300",
   CANCELLED: "bg-muted border-border text-muted-foreground line-through",
   NO_SHOW: "bg-destructive/10 border-destructive/40 text-destructive",
@@ -93,7 +93,7 @@ function DayView() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Appointments</h1>
+        <h1 className="text-heading-page">Appointments</h1>
         <Link href="/appointments/book">
           <Button>
             <Plus className="h-4 w-4" />

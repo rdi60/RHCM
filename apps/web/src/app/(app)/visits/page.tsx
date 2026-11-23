@@ -55,7 +55,7 @@ export default function VisitsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold">Today's Waiting List</h1>
+      <h1 className="text-heading-page">Today's Waiting List</h1>
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <Card>
@@ -66,7 +66,7 @@ export default function VisitsPage() {
         <CardContent className="flex flex-col gap-2">
           {active.length === 0 && <p className="text-sm text-muted-foreground">Nobody waiting.</p>}
           {active.map((visit) => (
-            <div key={visit.id} className="flex items-center justify-between rounded-md border border-border p-3">
+            <div key={visit.id} className="flex items-center justify-between rounded-button border border-border p-3">
               <div>
                 <p className="font-medium">
                   <Link href={`/visits/${visit.id}`} className="hover:underline">
@@ -108,7 +108,7 @@ export default function VisitsPage() {
         <CardContent className="flex flex-col gap-2">
           {done.length === 0 && <p className="text-sm text-muted-foreground">None yet.</p>}
           {done.map((visit) => (
-            <div key={visit.id} className="flex items-center justify-between rounded-md border border-border p-3 text-sm">
+            <div key={visit.id} className="flex items-center justify-between rounded-button border border-border p-3 text-sm">
               <span>
                 {visit.patient?.fullName} ({visit.visitNumber})
               </span>

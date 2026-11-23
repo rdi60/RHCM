@@ -89,9 +89,9 @@ export function DocumentsSection({ patientId }: { patientId: string }) {
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {canUpload && (
-          <div className="flex flex-wrap items-center gap-2 rounded-md border border-dashed border-border p-3">
+          <div className="flex flex-wrap items-center gap-2 rounded-button border border-dashed border-border p-3">
             <select
-              className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+              className="h-9 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-2 text-sm"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
             >
@@ -118,7 +118,7 @@ export function DocumentsSection({ patientId }: { patientId: string }) {
         {documentsQuery.data?.length === 0 && <p className="text-sm text-muted-foreground">No documents yet.</p>}
 
         {documentsQuery.data?.map((doc) => (
-          <div key={doc.id} className="flex items-center justify-between rounded-md border border-border p-3 text-sm">
+          <div key={doc.id} className="flex items-center justify-between rounded-button border border-border p-3 text-sm">
             <div>
               <p className="font-medium">
                 {doc.originalFilename} <span className="font-normal text-muted-foreground">· {doc.category.replace("_", " ")}</span>

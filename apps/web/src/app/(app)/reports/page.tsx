@@ -77,7 +77,7 @@ export default function ReportsPage() {
     <div className="flex flex-col gap-6 max-w-5xl">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Reports</h1>
+          <h1 className="text-heading-page">Reports</h1>
           <p className="text-sm text-muted-foreground">
             {useCombined ? "Combined across every entity you have access to" : `Scoped to ${currentGrant?.entityCode ?? "this entity"}`}
           </p>

@@ -27,18 +27,18 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "flex h-full flex-col border-r border-border bg-card transition-[width] duration-200",
+        "flex h-full flex-col bg-sidebar text-sidebar-foreground transition-[width] duration-200",
         collapsed ? "w-16" : "w-64",
       )}
     >
-      <div className="flex h-14 items-center gap-2 border-b border-border px-4">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+      <div className="flex h-14 items-center gap-2 px-4">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/15 text-sidebar-foreground">
           <Stethoscope className="h-4 w-4" />
         </div>
-        {!collapsed && <span className="truncate font-semibold">RHCM</span>}
+        {!collapsed && <span className="truncate text-heading-section font-semibold text-sidebar-foreground">RHCM</span>}
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto p-2">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-2">
         {visibleItems.map((item) => {
           const active = pathname === item.href || pathname?.startsWith(item.href + "/");
           const Icon = item.icon;
@@ -48,12 +48,14 @@ export function Sidebar({
               href={item.href}
               onClick={onNavigate}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                active
+                  ? "bg-peach text-peach-foreground shadow-subtle"
+                  : "text-sidebar-foreground/85 hover:bg-white/10 hover:text-sidebar-foreground",
               )}
               title={collapsed ? item.label : undefined}
             >
-              <Icon className="h-4 w-4 shrink-0" />
+              <Icon className={cn("h-4 w-4 shrink-0", active ? "text-peach-highlight" : "text-sidebar-foreground/85")} />
               {!collapsed && <span className="truncate">{item.label}</span>}
             </Link>
           );
@@ -62,7 +64,7 @@ export function Sidebar({
 
       <button
         onClick={onToggle}
-        className="hidden h-10 items-center justify-center border-t border-border text-muted-foreground hover:bg-muted md:flex"
+        className="hidden h-10 items-center justify-center border-t border-white/10 text-sidebar-foreground/70 transition-colors hover:bg-white/10 hover:text-sidebar-foreground md:flex"
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
       >
         {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}

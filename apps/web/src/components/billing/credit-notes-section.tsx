@@ -81,11 +81,11 @@ export function CreditNotesSection({ patientId }: { patientId: string }) {
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {showCreate && (
-          <form onSubmit={handleCreate} className="flex flex-col gap-3 rounded-md border border-dashed border-border p-3">
+          <form onSubmit={handleCreate} className="flex flex-col gap-3 rounded-button border border-dashed border-border p-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="cn-invoice">Invoice (optional)</Label>
-                <select id="cn-invoice" name="invoiceId" className="h-10 rounded-md border border-border bg-background px-3 text-sm">
+                <select id="cn-invoice" name="invoiceId" className="h-10 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-3 text-sm">
                   <option value="">General credit</option>
                   {invoicesQuery.data
                     ?.filter((i) => i.status !== "VOID")
@@ -119,7 +119,7 @@ export function CreditNotesSection({ patientId }: { patientId: string }) {
         {creditNotesQuery.data?.length === 0 && <p className="text-sm text-muted-foreground">No credit notes yet.</p>}
 
         {creditNotesQuery.data?.map((note) => (
-          <div key={note.id} className="flex items-center justify-between rounded-md border border-border p-3 text-sm">
+          <div key={note.id} className="flex items-center justify-between rounded-button border border-border p-3 text-sm">
             <div>
               <p className="font-medium">₹{note.amount}</p>
               <p className="text-muted-foreground">

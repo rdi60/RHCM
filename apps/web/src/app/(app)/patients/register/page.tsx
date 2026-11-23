@@ -71,7 +71,7 @@ export default function RegisterPatientPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold">New Registration</h1>
+      <h1 className="text-heading-page">New Registration</h1>
       <Card className="max-w-2xl">
         <CardHeader>
           <CardTitle>Temporary registration</CardTitle>
@@ -111,7 +111,7 @@ export default function RegisterPatientPage() {
               </div>
               <div className="flex flex-col gap-1.5 w-40">
                 <Label htmlFor="gender">Gender</Label>
-                <select id="gender" name="gender" defaultValue="" className="h-10 rounded-md border border-border bg-background px-3 text-sm">
+                <select id="gender" name="gender" defaultValue="" className="h-10 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-3 text-sm">
                   <option value="">Not specified</option>
                   <option value="MALE">Male</option>
                   <option value="FEMALE">Female</option>
@@ -127,7 +127,7 @@ export default function RegisterPatientPage() {
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="preferredDoctorId">Preferred doctor</Label>
-              <select id="preferredDoctorId" name="preferredDoctorId" defaultValue="" className="h-10 rounded-md border border-border bg-background px-3 text-sm">
+              <select id="preferredDoctorId" name="preferredDoctorId" defaultValue="" className="h-10 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-3 text-sm">
                 <option value="">No preference</option>
                 {doctorsQuery.data?.map((d) => (
                   <option key={d.id} value={d.id}>

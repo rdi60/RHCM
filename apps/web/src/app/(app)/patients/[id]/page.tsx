@@ -85,7 +85,7 @@ export default function PatientDashboardPage() {
   return (
     <div className={cn("flex flex-col gap-6", tab === "Billing" || tab === "Documents" ? "max-w-5xl" : "max-w-3xl")}>
       <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-semibold">{patient.fullName}</h1>
+        <h1 className="text-heading-page">{patient.fullName}</h1>
         <Badge>{patient.uhid}</Badge>
       </div>
 
@@ -104,14 +104,14 @@ export default function PatientDashboardPage() {
         </div>
       ) : null}
 
-      <div className="flex gap-1 overflow-x-auto border-b border-border">
+      <div className="flex gap-1 overflow-x-auto rounded-button border border-border bg-card p-1">
         {TABS.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={cn(
-              "shrink-0 whitespace-nowrap px-3 py-2 text-sm font-medium border-b-2 -mb-px",
-              tab === t ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground",
+              "shrink-0 whitespace-nowrap rounded-button px-3 py-1.5 text-sm font-medium transition-colors",
+              tab === t ? "bg-peach text-peach-foreground shadow-subtle" : "text-muted-foreground hover:bg-lavender hover:text-foreground",
             )}
           >
             {t}
@@ -191,7 +191,7 @@ export default function PatientDashboardPage() {
           <CardContent className="flex flex-col gap-2">
             {visitsQuery.data?.length === 0 && <p className="text-sm text-muted-foreground">No visits yet.</p>}
             {[...(visitsQuery.data ?? [])].reverse().map((v) => (
-              <Link key={v.id} href={`/visits/${v.id}`} className="flex items-center justify-between rounded-md border border-border p-3 text-sm hover:bg-muted">
+              <Link key={v.id} href={`/visits/${v.id}`} className="flex items-center justify-between rounded-button border border-border bg-card p-3 text-sm transition-colors hover:border-primary/20 hover:bg-lavender">
                 <div>
                   <p className="font-medium">{v.visitNumber}</p>
                   <p className="text-muted-foreground">
@@ -214,7 +214,7 @@ export default function PatientDashboardPage() {
           <CardContent className="flex flex-col gap-2">
             {appointmentsQuery.data?.length === 0 && <p className="text-sm text-muted-foreground">No appointments yet.</p>}
             {appointmentsQuery.data?.map((a) => (
-              <Link key={a.id} href={`/appointments/${a.id}`} className="flex items-center justify-between rounded-md border border-border p-3 text-sm hover:bg-muted">
+              <Link key={a.id} href={`/appointments/${a.id}`} className="flex items-center justify-between rounded-button border border-border bg-card p-3 text-sm transition-colors hover:border-primary/20 hover:bg-lavender">
                 <div>
                   <p className="font-medium">{formatIstDateTime(a.startAt)}</p>
                   <p className="text-muted-foreground">

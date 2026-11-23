@@ -60,7 +60,7 @@ export function PrescriptionsPanel({ visitId }: { visitId: string }) {
       <CardContent className="flex flex-col gap-4">
         {prescriptionsQuery.data?.length === 0 && <p className="text-sm text-muted-foreground">None issued for this visit.</p>}
         {prescriptionsQuery.data?.map((rx) => (
-          <div key={rx.id} className="rounded-md border border-border p-3 text-sm">
+          <div key={rx.id} className="rounded-button border border-border p-3 text-sm">
             <p className="text-xs text-muted-foreground">{formatIstDateTime(rx.prescribedAt)}</p>
             <ul className="mt-1 list-disc pl-4">
               {rx.itemsJson.map((item, i) => (
@@ -75,7 +75,7 @@ export function PrescriptionsPanel({ visitId }: { visitId: string }) {
         ))}
 
         {canPrescribe && (
-          <div className="flex flex-col gap-2 rounded-md border border-dashed border-border p-3">
+          <div className="flex flex-col gap-2 rounded-button border border-dashed border-border p-3">
             {items.map((item, idx) => (
               <div key={idx} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <Input placeholder="Drug" value={item.drugName} onChange={(e) => updateItem(idx, { drugName: e.target.value })} />

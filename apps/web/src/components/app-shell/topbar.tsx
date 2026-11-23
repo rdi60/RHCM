@@ -18,16 +18,20 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   }
 
   return (
-    <header className="flex h-14 items-center justify-between border-b border-border bg-card px-4">
+    <header className="flex h-16 items-center justify-between border-b border-border bg-card px-4 md:px-6">
       <div className="flex items-center gap-3">
-        <button className="md:hidden" onClick={onMenuClick} aria-label="Open menu">
+        <button
+          className="rounded-button p-1.5 text-muted-foreground hover:bg-lavender md:hidden"
+          onClick={onMenuClick}
+          aria-label="Open menu"
+        >
           <Menu className="h-5 w-5" />
         </button>
         <EntitySwitcher />
       </div>
       <div className="flex items-center gap-3">
-        <span className="hidden text-sm text-muted-foreground sm:inline">{user?.email}</span>
-        <Button variant="ghost" size="sm" onClick={handleLogout}>
+        <span className="hidden text-body text-muted-foreground sm:inline">{user?.email}</span>
+        <Button variant="secondary" size="sm" onClick={handleLogout}>
           <LogOut className="h-4 w-4" />
           <span className="hidden sm:inline">Log out</span>
         </Button>

@@ -66,11 +66,11 @@ export function ConsentSection({ patientId }: { patientId: string }) {
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {showForm && (
-          <form onSubmit={handleSubmit} className="flex flex-col gap-3 rounded-md border border-dashed border-border p-3">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3 rounded-button border border-dashed border-border p-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="consentType">Type</Label>
-                <select id="consentType" name="consentType" required className="h-10 rounded-md border border-border bg-background px-3 text-sm">
+                <select id="consentType" name="consentType" required className="h-10 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-3 text-sm">
                   {CONSENT_TYPES.map((t) => (
                     <option key={t} value={t}>
                       {t.replace(/_/g, " ")}
@@ -101,7 +101,7 @@ export function ConsentSection({ patientId }: { patientId: string }) {
         {consentsQuery.data?.length === 0 && <p className="text-sm text-muted-foreground">No consent records yet.</p>}
 
         {consentsQuery.data?.map((c) => (
-          <div key={c.id} className="flex items-center justify-between rounded-md border border-border p-3 text-sm">
+          <div key={c.id} className="flex items-center justify-between rounded-button border border-border p-3 text-sm">
             <div>
               <p className="font-medium">
                 {c.consentType.replace(/_/g, " ")} <span className="font-normal text-muted-foreground">v{c.version}</span>

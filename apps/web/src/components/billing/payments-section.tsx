@@ -119,7 +119,7 @@ export function PaymentsSection({ patientId }: { patientId: string }) {
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {showRecord && (
-          <form onSubmit={handleRecord} className="flex flex-col gap-3 rounded-md border border-dashed border-border p-3">
+          <form onSubmit={handleRecord} className="flex flex-col gap-3 rounded-button border border-dashed border-border p-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="amount">Amount</Label>
@@ -127,7 +127,7 @@ export function PaymentsSection({ patientId }: { patientId: string }) {
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="mode">Mode</Label>
-                <select id="mode" name="mode" required className="h-10 rounded-md border border-border bg-background px-3 text-sm">
+                <select id="mode" name="mode" required className="h-10 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-3 text-sm">
                   {PAYMENT_MODES.map((m) => (
                     <option key={m} value={m}>
                       {m.replace("_", " ")}
@@ -160,7 +160,7 @@ export function PaymentsSection({ patientId }: { patientId: string }) {
         {paymentsQuery.data?.map((payment) => {
           const remaining = paymentRemaining(payment);
           return (
-            <div key={payment.id} className="rounded-md border border-border p-3">
+            <div key={payment.id} className="rounded-button border border-border p-3">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">
@@ -211,7 +211,7 @@ export function PaymentsSection({ patientId }: { patientId: string }) {
                   {allocatingPaymentId === payment.id ? (
                     <div className="flex flex-wrap items-center gap-2">
                       <select
-                        className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+                        className="h-9 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-2 text-sm"
                         value={allocateInvoiceId}
                         onChange={(e) => setAllocateInvoiceId(e.target.value)}
                       >

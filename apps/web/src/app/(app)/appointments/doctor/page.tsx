@@ -43,13 +43,13 @@ export default function AppointmentsDoctorPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold">Appointments</h1>
+      <h1 className="text-heading-page">Appointments</h1>
       <ViewTabs />
 
       <select
         value={doctorId}
         onChange={(e) => setDoctorId(e.target.value)}
-        className="h-10 w-64 rounded-md border border-border bg-background px-3 text-sm"
+        className="h-10 w-64 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-3 text-sm"
       >
         <option value="">Select a doctor</option>
         {doctorsQuery.data?.map((d) => (
@@ -68,7 +68,7 @@ export default function AppointmentsDoctorPage() {
           {!doctorId && <p className="text-sm text-muted-foreground">Select a doctor to see their schedule.</p>}
           {doctorId && appointmentsQuery.data?.length === 0 && <p className="text-sm text-muted-foreground">No appointments in this window.</p>}
           {appointmentsQuery.data?.map((a) => (
-            <Link key={a.id} href={`/appointments/${a.id}`} className="flex items-center justify-between rounded-md border border-border p-2 text-sm hover:bg-muted">
+            <Link key={a.id} href={`/appointments/${a.id}`} className="flex items-center justify-between rounded-button border border-border p-2 text-sm transition-colors hover:bg-lavender">
               <div>
                 <p className="font-medium">{a.patient?.fullName ?? a.temporaryRegistration?.fullName}</p>
                 <p className="text-muted-foreground">

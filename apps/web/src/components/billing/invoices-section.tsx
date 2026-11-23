@@ -107,7 +107,7 @@ export function InvoicesSection({ patientId, catalog, taxProfiles }: { patientId
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {showCreate && (
-          <div className="flex flex-col gap-3 rounded-md border border-dashed border-border p-3">
+          <div className="flex flex-col gap-3 rounded-button border border-dashed border-border p-3">
             <LineItemsEditor mode="invoice" items={draftItems} onChange={setDraftItems} catalog={catalog} taxProfiles={taxProfiles} />
             <div className="flex gap-2">
               <Button size="sm" disabled={createMutation.isPending} onClick={() => createMutation.mutate(draftItems)}>
@@ -123,7 +123,7 @@ export function InvoicesSection({ patientId, catalog, taxProfiles }: { patientId
         {invoicesQuery.data?.length === 0 && <p className="text-sm text-muted-foreground">No invoices yet.</p>}
 
         {invoicesQuery.data?.map((invoice) => (
-          <div key={invoice.id} className="rounded-md border border-border p-3">
+          <div key={invoice.id} className="rounded-button border border-border p-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">{invoice.invoiceNumber}</p>
@@ -161,7 +161,7 @@ export function InvoicesSection({ patientId, catalog, taxProfiles }: { patientId
               <Link
                 href={`/invoices/${invoice.id}/print?entityId=${selectedEntityId}`}
                 target="_blank"
-                className="inline-flex h-8 items-center justify-center rounded-md px-3 text-xs font-medium hover:bg-muted"
+                className="inline-flex h-8 items-center justify-center rounded-button px-3 text-xs font-medium transition-colors hover:bg-lavender"
               >
                 Print
               </Link>
@@ -184,7 +184,7 @@ export function InvoicesSection({ patientId, catalog, taxProfiles }: { patientId
             )}
 
             {correctingId === invoice.id && (
-              <div className="mt-3 flex flex-col gap-3 rounded-md border border-dashed border-border p-3">
+              <div className="mt-3 flex flex-col gap-3 rounded-button border border-dashed border-border p-3">
                 <p className="text-sm font-medium">Correct invoice (voids this one, issues a replacement)</p>
                 <Input placeholder="Reason for correction" value={voidReason} onChange={(e) => setVoidReason(e.target.value)} />
                 <LineItemsEditor mode="invoice" items={draftItems} onChange={setDraftItems} catalog={catalog} taxProfiles={taxProfiles} />

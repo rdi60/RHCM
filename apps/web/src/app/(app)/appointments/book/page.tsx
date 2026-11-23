@@ -95,7 +95,7 @@ function BookForm() {
 
   return (
     <div className="flex flex-col gap-6 max-w-2xl">
-      <h1 className="text-2xl font-semibold">New Appointment</h1>
+      <h1 className="text-heading-page">New Appointment</h1>
 
       <Card>
         <CardHeader>
@@ -104,7 +104,7 @@ function BookForm() {
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           {subject ? (
-            <div className="flex items-center justify-between rounded-md border border-primary/40 bg-primary/5 p-2 text-sm">
+            <div className="flex items-center justify-between rounded-button border border-primary/40 bg-primary/5 p-2 text-sm">
               {subject.label}
               <Button variant="ghost" size="sm" onClick={() => setSubject(null)}>
                 Change
@@ -118,7 +118,7 @@ function BookForm() {
                   <button
                     key={p.id}
                     type="button"
-                    className="rounded-md border border-border p-2 text-left text-sm hover:bg-muted"
+                    className="rounded-button border border-border p-2 text-left text-sm transition-colors hover:bg-lavender"
                     onClick={() => setSubject({ id: p.id, label: `${p.fullName} (${p.uhid})`, isTempReg: false })}
                   >
                     {p.fullName} · {p.uhid}
@@ -128,7 +128,7 @@ function BookForm() {
                   <button
                     key={r.id}
                     type="button"
-                    className="rounded-md border border-border p-2 text-left text-sm hover:bg-muted"
+                    className="rounded-button border border-border p-2 text-left text-sm transition-colors hover:bg-lavender"
                     onClick={() => setSubject({ id: r.id, label: `${r.fullName} (${r.tempId}, not yet checked in)`, isTempReg: true })}
                   >
                     {r.fullName} · {r.tempId} <span className="text-muted-foreground">(temp registration)</span>
@@ -155,7 +155,7 @@ function BookForm() {
                   setDoctorId(e.target.value);
                   setSlot(null);
                 }}
-                className="h-10 rounded-md border border-border bg-background px-3 text-sm"
+                className="h-10 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-3 text-sm"
               >
                 <option value="">Select a doctor</option>
                 {doctorsQuery.data?.map((d) => (
@@ -190,11 +190,11 @@ function BookForm() {
                     type="button"
                     disabled={!s.available}
                     onClick={() => setSlot({ startAt: s.startAt, endAt: s.endAt })}
-                    className={`rounded-md border px-2 py-1 text-xs ${
+                    className={`rounded-button border px-2 py-1 text-xs ${
                       slot?.startAt === s.startAt
                         ? "border-primary bg-primary text-primary-foreground"
                         : s.available
-                          ? "border-border hover:bg-muted"
+                          ? "border-border transition-colors hover:bg-lavender"
                           : "border-border bg-muted text-muted-foreground line-through"
                     }`}
                   >
@@ -212,7 +212,7 @@ function BookForm() {
                 id="resourceId"
                 value={resourceId}
                 onChange={(e) => setResourceId(e.target.value)}
-                className="h-10 rounded-md border border-border bg-background px-3 text-sm"
+                className="h-10 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-3 text-sm"
               >
                 <option value="">Unassigned</option>
                 {resourcesQuery.data
@@ -230,7 +230,7 @@ function BookForm() {
                 id="type"
                 value={type}
                 onChange={(e) => setType(e.target.value)}
-                className="h-10 rounded-md border border-border bg-background px-3 text-sm"
+                className="h-10 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-3 text-sm"
               >
                 <option value="CONSULTATION">Consultation</option>
                 <option value="TREATMENT">Treatment</option>

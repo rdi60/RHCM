@@ -8,14 +8,14 @@ export function EntitySwitcher() {
   if (!user || user.access.length === 0) return null;
 
   if (user.access.length === 1) {
-    return <span className="text-sm font-medium text-muted-foreground">{user.access[0].entityCode}</span>;
+    return <span className="rounded-full bg-lavender px-3 py-1 text-sm font-medium text-primary">{user.access[0].entityCode}</span>;
   }
 
   return (
     <select
       value={selectedEntityId ?? ""}
       onChange={(e) => setSelectedEntityId(e.target.value)}
-      className="h-9 rounded-md border border-border bg-background px-2 text-sm font-medium"
+      className="h-9 rounded-button border border-border bg-lavender px-3 text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
       aria-label="Active entity"
     >
       {user.access

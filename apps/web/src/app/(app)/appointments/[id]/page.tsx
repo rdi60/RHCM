@@ -58,7 +58,7 @@ export default function AppointmentDetailPage() {
   return (
     <div className="flex flex-col gap-6 max-w-xl">
       <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-semibold">{appt.patient?.fullName ?? appt.temporaryRegistration?.fullName}</h1>
+        <h1 className="text-heading-page">{appt.patient?.fullName ?? appt.temporaryRegistration?.fullName}</h1>
         <Badge>{appt.status}</Badge>
       </div>
 

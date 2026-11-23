@@ -70,7 +70,7 @@ export default function AppointmentsMonthPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold">Appointments</h1>
+      <h1 className="text-heading-page">Appointments</h1>
       <ViewTabs />
 
       <div className="flex items-center gap-2">
@@ -100,7 +100,7 @@ export default function AppointmentsMonthPage() {
                   key={cell.dateParam}
                   href={`/appointments?date=${cell.dateParam}`}
                   className={cn(
-                    "flex h-20 flex-col rounded-md border border-border p-1.5 text-xs hover:bg-muted",
+                    "flex h-20 flex-col rounded-button border border-border p-1.5 text-xs transition-colors hover:bg-lavender",
                     !cell.inMonth && "opacity-40",
                     cell.dateParam === todayIstDateParam() && "border-primary",
                   )}

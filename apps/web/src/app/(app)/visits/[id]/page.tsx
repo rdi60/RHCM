@@ -103,7 +103,7 @@ export default function VisitEncounterPage() {
   return (
     <div className="flex flex-col gap-6 max-w-4xl">
       <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-semibold">{visit.patient?.fullName}</h1>
+        <h1 className="text-heading-page">{visit.patient?.fullName}</h1>
         <Badge>{visit.visitNumber}</Badge>
         <Badge variant="muted">{visit.status.replace("_", " ")}</Badge>
       </div>
@@ -128,7 +128,7 @@ export default function VisitEncounterPage() {
                   id="clinicalFindings"
                   name="clinicalFindings"
                   defaultValue={visit.clinicalFindings ?? ""}
-                  className="rounded-md border border-border bg-background p-2 text-sm"
+                  className="rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 p-2 text-sm"
                   rows={2}
                 />
               </div>
@@ -138,7 +138,7 @@ export default function VisitEncounterPage() {
                   id="diagnosisSummary"
                   name="diagnosisSummary"
                   defaultValue={visit.diagnosisSummary ?? ""}
-                  className="rounded-md border border-border bg-background p-2 text-sm"
+                  className="rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 p-2 text-sm"
                   rows={2}
                 />
               </div>
@@ -148,7 +148,7 @@ export default function VisitEncounterPage() {
                   id="treatmentAdvice"
                   name="treatmentAdvice"
                   defaultValue={visit.treatmentAdvice ?? ""}
-                  className="rounded-md border border-border bg-background p-2 text-sm"
+                  className="rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 p-2 text-sm"
                   rows={2}
                 />
               </div>
@@ -193,7 +193,7 @@ export default function VisitEncounterPage() {
         <CardContent className="flex flex-col gap-3">
           {diagnosesQuery.data?.length === 0 && <p className="text-sm text-muted-foreground">None recorded yet.</p>}
           {diagnosesQuery.data?.map((d) => (
-            <div key={d.id} className="rounded-md border border-border p-2 text-sm">
+            <div key={d.id} className="rounded-button border border-border p-2 text-sm">
               {d.toothNumber ? `Tooth ${d.toothNumber}: ` : ""}
               {d.description}
             </div>

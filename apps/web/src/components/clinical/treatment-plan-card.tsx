@@ -90,7 +90,7 @@ export function TreatmentPlanCard({ plan, patientId }: { plan: TreatmentPlanRow;
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {plan.items.map((item) => (
-          <div key={item.id} className="rounded-md border border-border p-3">
+          <div key={item.id} className="rounded-button border border-border p-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">
@@ -138,8 +138,8 @@ export function TreatmentPlanCard({ plan, patientId }: { plan: TreatmentPlanRow;
         {canPlan && (
           <>
             {showAddItem ? (
-              <form onSubmit={handleAddItem} className="flex flex-col gap-2 rounded-md border border-dashed border-border p-3">
-                <select name="treatmentCatalogId" required className="h-9 rounded-md border border-border bg-background px-2 text-sm">
+              <form onSubmit={handleAddItem} className="flex flex-col gap-2 rounded-button border border-dashed border-border p-3">
+                <select name="treatmentCatalogId" required className="h-9 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-2 text-sm">
                   <option value="">Select procedure</option>
                   {catalogQuery.data?.map((t) => (
                     <option key={t.id} value={t.id}>
@@ -148,8 +148,8 @@ export function TreatmentPlanCard({ plan, patientId }: { plan: TreatmentPlanRow;
                   ))}
                 </select>
                 <div className="grid grid-cols-2 gap-2">
-                  <input name="toothNumber" type="number" placeholder="Tooth #" className="h-9 rounded-md border border-border bg-background px-2 text-sm" />
-                  <select name="plannedDoctorId" className="h-9 rounded-md border border-border bg-background px-2 text-sm">
+                  <input name="toothNumber" type="number" placeholder="Tooth #" className="h-9 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-2 text-sm" />
+                  <select name="plannedDoctorId" className="h-9 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-2 text-sm">
                     <option value="">Doctor</option>
                     {doctorsQuery.data?.map((d) => (
                       <option key={d.id} value={d.id}>

@@ -38,7 +38,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       <div className={cn("flex min-w-0 flex-1 flex-col")}>
         <Topbar onMenuClick={() => setMobileOpen(true)} />
-        <main className="flex-1 overflow-y-auto bg-muted/30 p-4 md:p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto bg-background p-4 md:p-6">{children}</main>
       </div>
     </div>
   );

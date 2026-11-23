@@ -56,7 +56,7 @@ export default function EntitySettingsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold">Entity Settings</h1>
+      <h1 className="text-heading-page">Entity Settings</h1>
 
       {canManageSettings && (
         <Card>

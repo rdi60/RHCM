@@ -50,10 +50,10 @@ export function LineItemsEditor({
   return (
     <div className="flex flex-col gap-2">
       {items.map((item, i) => (
-        <div key={i} className="grid grid-cols-12 gap-2 rounded-md border border-dashed border-border p-2">
+        <div key={i} className="grid grid-cols-12 gap-2 rounded-button border border-dashed border-border p-2">
           {mode === "estimate" ? (
             <select
-              className="col-span-4 h-9 rounded-md border border-border bg-background px-2 text-sm"
+              className="col-span-4 h-9 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-2 text-sm"
               value={item.treatmentCatalogId ?? ""}
               onChange={(e) => {
                 const c = catalog.find((x) => x.id === e.target.value);
@@ -70,7 +70,7 @@ export function LineItemsEditor({
           ) : (
             <>
               <select
-                className="col-span-2 h-9 rounded-md border border-border bg-background px-2 text-sm"
+                className="col-span-2 h-9 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-2 text-sm"
                 value={item.treatmentCatalogId ?? ""}
                 onChange={(e) => {
                   const c = catalog.find((x) => x.id === e.target.value);
@@ -89,7 +89,7 @@ export function LineItemsEditor({
                 ))}
               </select>
               <input
-                className="col-span-2 h-9 rounded-md border border-border bg-background px-2 text-sm"
+                className="col-span-2 h-9 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-2 text-sm"
                 placeholder="Description"
                 value={item.description}
                 onChange={(e) => update(i, { description: e.target.value })}
@@ -99,7 +99,7 @@ export function LineItemsEditor({
           <input
             type="number"
             min={1}
-            className="col-span-1 h-9 rounded-md border border-border bg-background px-2 text-sm"
+            className="col-span-1 h-9 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-2 text-sm"
             placeholder="Qty"
             value={item.quantity}
             onChange={(e) => update(i, { quantity: Math.max(1, Number(e.target.value) || 1) })}
@@ -108,7 +108,7 @@ export function LineItemsEditor({
             type="number"
             min={0}
             step="0.01"
-            className="col-span-2 h-9 rounded-md border border-border bg-background px-2 text-sm"
+            className="col-span-2 h-9 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-2 text-sm"
             placeholder={mode === "estimate" ? "Price (auto)" : "Unit price"}
             value={item.unitPrice ?? ""}
             onChange={(e) => update(i, { unitPrice: e.target.value ? Number(e.target.value) : undefined })}
@@ -117,20 +117,20 @@ export function LineItemsEditor({
             type="number"
             min={0}
             step="0.01"
-            className="col-span-1 h-9 rounded-md border border-border bg-background px-2 text-sm"
+            className="col-span-1 h-9 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-2 text-sm"
             placeholder="Discount"
             value={item.discountAmount}
             onChange={(e) => update(i, { discountAmount: Number(e.target.value) || 0 })}
           />
           <input
             type="number"
-            className="col-span-1 h-9 rounded-md border border-border bg-background px-2 text-sm"
+            className="col-span-1 h-9 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-2 text-sm"
             placeholder="Tooth #"
             value={item.toothNumber ?? ""}
             onChange={(e) => update(i, { toothNumber: e.target.value ? Number(e.target.value) : undefined })}
           />
           <select
-            className="col-span-2 h-9 rounded-md border border-border bg-background px-2 text-sm"
+            className="col-span-2 h-9 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-2 text-sm"
             value={item.taxProfileId ?? ""}
             onChange={(e) => update(i, { taxProfileId: e.target.value || undefined })}
           >

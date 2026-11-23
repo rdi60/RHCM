@@ -85,7 +85,7 @@ export default function RolesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold">Roles & Permissions</h1>
+      <h1 className="text-heading-page">Roles & Permissions</h1>
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -99,7 +99,7 @@ export default function RolesPage() {
               <button
                 key={role.id}
                 onClick={() => selectRole(role)}
-                className={`flex items-center justify-between rounded-md border border-border p-3 text-left hover:bg-muted ${selectedRoleId === role.id ? "bg-muted" : ""}`}
+                className={`flex items-center justify-between rounded-button border p-3 text-left transition-colors hover:bg-lavender ${selectedRoleId === role.id ? "border-primary/30 bg-lavender" : "border-border"}`}
               >
                 <div>
                   <p className="font-medium">{role.name}</p>
