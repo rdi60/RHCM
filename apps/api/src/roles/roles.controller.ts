@@ -6,7 +6,9 @@ import { PERMISSIONS } from "@rhcm/shared";
 import { CreateRoleDto } from "./dto/create-role.dto";
 import { UpdateRolePermissionsDto } from "./dto/update-role-permissions.dto";
 import type { AuthenticatedUser } from "../common/types/authenticated-user";
+import { ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Roles & Permissions")
 @Controller("roles")
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}

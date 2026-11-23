@@ -5,7 +5,9 @@ import { RequirePermissions } from "../common/decorators/permissions.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import type { AuthenticatedUser } from "../common/types/authenticated-user";
 import { EntityScopedDto, RequestDocumentUploadDto } from "./dto/document.dto";
+import { ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Documents")
 @Controller()
 export class DocumentsController {
   constructor(private readonly documentsService: DocumentsService) {}

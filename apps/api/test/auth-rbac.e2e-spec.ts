@@ -3,7 +3,7 @@ import request from "supertest";
 import * as argon2 from "argon2";
 import { authenticator } from "otplib";
 import { prisma } from "@rhcm/database";
-import { createTestApp, extractCookie } from "./test-app";
+import { createTestApp, extractCookie, loginWithMfa } from "./test-app";
 
 const DEV_PASSWORD = "DevPass!2026";
 const DEV_MFA_SECRET = "JBSWY3DPEHPK3PXP";
@@ -39,16 +39,7 @@ describe("Auth + RBAC (Stage 1)", () => {
   }
 
   async function loginAsSuperAdmin() {
-    const loginRes = await request(server)
-      .post("/auth/login")
-      .send({ email: "superadmin@rhcm.test", password: DEV_PASSWORD })
-      .expect(200);
-    expect(loginRes.body.mfaRequired).toBe(true);
-    const pendingCookie = extractCookie(loginRes);
-
-    const code = authenticator.generate(DEV_MFA_SECRET);
-    const mfaRes = await request(server).post("/auth/mfa/verify").set("Cookie", pendingCookie).send({ code }).expect(200);
-    return extractCookie(mfaRes);
+    return loginWithMfa(server, "superadmin@rhcm.test", DEV_PASSWORD);
   }
 
   describe("unauthenticated access", () => {
@@ -91,6 +82,8 @@ describe("Auth + RBAC (Stage 1)", () => {
     });
 
     it("requires MFA for an MFA-enabled user and rejects access before it's verified", async () => {
+      await prisma.user.updateMany({ where: { email: "superadmin@rhcm.test" }, data: { lastMfaStep: null } });
+
       const loginRes = await request(server)
         .post("/auth/login")
         .send({ email: "superadmin@rhcm.test", password: DEV_PASSWORD })
@@ -104,6 +97,33 @@ describe("Auth + RBAC (Stage 1)", () => {
 
       const code = authenticator.generate(DEV_MFA_SECRET);
       await request(server).post("/auth/mfa/verify").set("Cookie", pendingCookie).send({ code }).expect(200);
+    });
+
+    it("rejects a second use of the same TOTP code (replay protection)", async () => {
+      await prisma.user.updateMany({ where: { email: "superadmin@rhcm.test" }, data: { lastMfaStep: null } });
+
+      const loginRes = await request(server)
+        .post("/auth/login")
+        .send({ email: "superadmin@rhcm.test", password: DEV_PASSWORD })
+        .expect(200);
+      const firstPendingCookie = extractCookie(loginRes);
+      const code = authenticator.generate(DEV_MFA_SECRET);
+      await request(server).post("/auth/mfa/verify").set("Cookie", firstPendingCookie).send({ code }).expect(200);
+
+      // A second, independent login attempt presenting the exact same code
+      // (e.g. an attacker who captured it) must be rejected even though the
+      // code itself is well-formed and matches the secret.
+      const secondLoginRes = await request(server)
+        .post("/auth/login")
+        .send({ email: "superadmin@rhcm.test", password: DEV_PASSWORD })
+        .expect(200);
+      const secondPendingCookie = extractCookie(secondLoginRes);
+      const res = await request(server)
+        .post("/auth/mfa/verify")
+        .set("Cookie", secondPendingCookie)
+        .send({ code })
+        .expect(401);
+      expect(res.body.message).toBe("Invalid authentication code");
     });
   });
 

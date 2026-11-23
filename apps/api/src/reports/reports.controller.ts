@@ -4,9 +4,11 @@ import { ReportsService } from "./reports.service";
 import { RequireGlobalPermissions, RequirePermissions } from "../common/decorators/permissions.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import type { AuthenticatedUser } from "../common/types/authenticated-user";
+import { ApiTags } from "@nestjs/swagger";
 
 type ReportFn = (entityId: string, range: { from?: string; to?: string }) => Promise<unknown>;
 
+@ApiTags("Reports")
 @Controller("reports")
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}

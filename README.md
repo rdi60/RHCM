@@ -94,7 +94,23 @@ page. Finally, this stage adds production Dockerfiles for both apps,
 `docker-compose.prod.yml`, a CI workflow, and the Deployment section
 below.
 
-See `docs/ARCHITECTURE.md` Section 9 for the original 6-stage plan.
+**Stage 7** (this state of the repo) adds interactive API documentation and
+a security hardening pass. The API now serves a Swagger/OpenAPI UI — see
+[API Documentation](#api-documentation) below — generated from the
+existing `class-validator`-decorated DTOs via the `@nestjs/swagger` compiler
+plugin, with no manual `@ApiProperty()` annotation needed. The hardening
+pass covers session fixation (the session ID is regenerated on every
+privilege change — password-verified login and MFA verification), TOTP
+replay protection (a captured, already-used MFA code is rejected even
+though it's otherwise valid), a JSON-only body parser, `trust proxy` for
+correct client-IP/HTTPS detection behind a reverse proxy, a throttle on
+the password-reset endpoint, and a dependency vulnerability sweep. See
+[SECURITY.md](SECURITY.md) for the full write-up.
+
+See `docs/ARCHITECTURE.md` Section 9 for the original 6-stage plan (Stage 7
+was scoped afterward: API docs + security hardening, per the project's own
+follow-up planning — OT management is not part of the original plan and
+remains out of scope).
 
 ## Stack
 
@@ -250,6 +266,24 @@ This prompts for a password interactively (never stored in the repo or any
 script) and grants that account Super Administrator access to every
 existing entity. See `docs/ARCHITECTURE.md` Section 4.3.
 
+## API Documentation
+
+With `pnpm dev:api` running, open http://localhost:4000/api/docs for an
+interactive Swagger UI covering every route (97 paths across 23 tagged
+groups as of Stage 7), including request/response schemas derived
+directly from each endpoint's DTO. It's on by default outside
+production; in production it's off unless `ENABLE_API_DOCS=true` is set
+(see `apps/api/src/main.ts`). The UI can't log in for you — authenticate
+first in the same cookie-aware browser tab (`POST /auth/login`, then
+`POST /auth/mfa/verify` if MFA is enabled) and "Try it out" will use that
+session. The raw machine-readable spec is at `/api/docs-json`.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for the full hardening write-up (session
+fixation, TOTP replay protection, CORS/CSRF posture, body-parsing,
+dependency audit) and its accepted-risk/known-limitation notes.
+
 ## Tests
 
 ```bash
@@ -272,7 +306,8 @@ real database and a real NestJS instance:
 - login success/failure, account lockout after repeated failures, generic
   (non-enumerating) error messages
 - the MFA challenge (password-correct-but-pending state, wrong code,
-  correct code)
+  correct code, and — Stage 7 — that a second use of the same correct
+  code is rejected as a replay)
 - permission-guard denial (missing permission) and entity-isolation
   denial (right permission, wrong entity)
 - MFA-mandatory-role enforcement when granting access

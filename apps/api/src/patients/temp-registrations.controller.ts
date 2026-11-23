@@ -7,7 +7,9 @@ import { CreateTempRegistrationDto } from "./dto/create-temp-registration.dto";
 import { UpdateTempRegistrationDto } from "./dto/update-temp-registration.dto";
 import { CheckInDto } from "./dto/check-in.dto";
 import type { AuthenticatedUser } from "../common/types/authenticated-user";
+import { ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Patients - Temporary Registrations")
 @Controller("temp-registrations")
 export class TempRegistrationsController {
   constructor(private readonly patientsService: PatientsService) {}

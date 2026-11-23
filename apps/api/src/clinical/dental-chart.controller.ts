@@ -5,7 +5,9 @@ import { RequirePermissions } from "../common/decorators/permissions.decorator";
 import { PERMISSIONS } from "@rhcm/shared";
 import { CreateDentalChartEntryDto } from "./dto/dental-chart.dto";
 import type { AuthenticatedUser } from "../common/types/authenticated-user";
+import { ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Clinical - Dental Chart")
 @Controller("patients/:patientId/dental-chart")
 export class DentalChartController {
   constructor(private readonly clinicalService: ClinicalService) {}

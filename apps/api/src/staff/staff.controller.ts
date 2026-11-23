@@ -6,7 +6,9 @@ import { PERMISSIONS } from "@rhcm/shared";
 import { CreateStaffDto } from "./dto/create-staff.dto";
 import { AssignEntityDto } from "./dto/assignment.dto";
 import type { AuthenticatedUser } from "../common/types/authenticated-user";
+import { ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Staff")
 @Controller("staff")
 export class StaffController {
   constructor(private readonly staffService: StaffService) {}

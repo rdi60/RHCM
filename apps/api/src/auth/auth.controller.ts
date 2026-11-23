@@ -10,6 +10,7 @@ import { MfaEnableDto, MfaVerifyDto } from "./dto/mfa.dto";
 import { PasswordForgotDto, PasswordResetDto } from "./dto/password.dto";
 import { DisableMfaDto } from "./dto/disable-mfa.dto";
 import type { AuthenticatedUser } from "../common/types/authenticated-user";
+import { ApiTags } from "@nestjs/swagger";
 
 function meta(req: Request) {
   return { ip: req.ip, userAgent: req.get("user-agent") ?? undefined };
@@ -24,6 +25,7 @@ const LOGIN_THROTTLE_LIMIT = Number(process.env.AUTH_LOGIN_THROTTLE_LIMIT ?? 10)
 const LOGIN_THROTTLE_TTL_MS = Number(process.env.AUTH_LOGIN_THROTTLE_TTL_MS ?? 60_000);
 const PASSWORD_THROTTLE_LIMIT = Number(process.env.AUTH_PASSWORD_THROTTLE_LIMIT ?? 5);
 
+@ApiTags("Auth")
 @Controller("auth")
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -33,7 +35,7 @@ export class AuthController {
   @HttpCode(200)
   @Post("login")
   login(@Body() dto: LoginDto, @Req() req: Request) {
-    return this.authService.login(dto, req.session, meta(req));
+    return this.authService.login(dto, req, meta(req));
   }
 
   @Public()
@@ -41,7 +43,7 @@ export class AuthController {
   @HttpCode(200)
   @Post("mfa/verify")
   verifyMfa(@Body() dto: MfaVerifyDto, @Req() req: Request) {
-    return this.authService.verifyMfa(dto, req.session, meta(req));
+    return this.authService.verifyMfa(dto, req, meta(req));
   }
 
   @Public()
@@ -61,6 +63,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: PASSWORD_THROTTLE_LIMIT, ttl: LOGIN_THROTTLE_TTL_MS } })
   @HttpCode(200)
   @Post("password/reset")
   resetPassword(@Body() dto: PasswordResetDto) {

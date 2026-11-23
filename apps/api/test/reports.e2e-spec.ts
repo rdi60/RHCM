@@ -1,7 +1,7 @@
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 import { prisma } from "@rhcm/database";
-import { createTestApp, extractCookie } from "./test-app";
+import { createTestApp, extractCookie, loginWithMfa } from "./test-app";
 
 const DEV_PASSWORD = "DevPass!2026";
 
@@ -22,12 +22,7 @@ describe("Reports & Audit Log (Stage 6)", () => {
   }
 
   async function loginMfa(email: string): Promise<string> {
-    const { authenticator } = await import("otplib");
-    const loginRes = await request(server).post("/auth/login").send({ email, password: DEV_PASSWORD }).expect(200);
-    const pendingCookie = extractCookie(loginRes);
-    const code = authenticator.generate("JBSWY3DPEHPK3PXP");
-    const mfaRes = await request(server).post("/auth/mfa/verify").set("Cookie", pendingCookie).send({ code }).expect(200);
-    return extractCookie(mfaRes);
+    return loginWithMfa(server, email, DEV_PASSWORD);
   }
 
   beforeAll(async () => {

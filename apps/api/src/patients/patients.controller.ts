@@ -5,7 +5,9 @@ import { RequirePermissions } from "../common/decorators/permissions.decorator";
 import { PERMISSIONS } from "@rhcm/shared";
 import { UpdatePatientDto } from "./dto/update-patient.dto";
 import type { AuthenticatedUser } from "../common/types/authenticated-user";
+import { ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Patients")
 @Controller("patients")
 export class PatientsController {
   constructor(private readonly patientsService: PatientsService) {}

@@ -3,7 +3,9 @@ import { PrismaService } from "../prisma/prisma.service";
 import { RequirePermissions } from "../common/decorators/permissions.decorator";
 import { PERMISSIONS } from "@rhcm/shared";
 import { addMinutes, istToUtc } from "../common/time/ist";
+import { ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Audit")
 @Controller("audit-logs")
 export class AuditController {
   constructor(private readonly prisma: PrismaService) {}

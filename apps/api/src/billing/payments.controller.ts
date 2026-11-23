@@ -6,7 +6,9 @@ import { CurrentUser } from "../common/decorators/current-user.decorator";
 import type { AuthenticatedUser } from "../common/types/authenticated-user";
 import { CreatePaymentDto } from "./dto/payment.dto";
 import { CreateAllocationDto, ReverseAllocationDto } from "./dto/payment-allocation.dto";
+import { ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Billing - Payments")
 @Controller()
 export class PaymentsController {
   constructor(private readonly billingService: BillingService) {}

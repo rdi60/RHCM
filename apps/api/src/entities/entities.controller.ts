@@ -6,7 +6,9 @@ import { PERMISSIONS } from "@rhcm/shared";
 import { CreateEntityDto } from "./dto/create-entity.dto";
 import { UpdateEntitySettingsDto } from "./dto/update-entity-settings.dto";
 import type { AuthenticatedUser } from "../common/types/authenticated-user";
+import { ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Entities")
 @Controller("entities")
 export class EntitiesController {
   constructor(private readonly entitiesService: EntitiesService) {}

@@ -6,7 +6,9 @@ import { CurrentUser } from "../common/decorators/current-user.decorator";
 import type { AuthenticatedUser } from "../common/types/authenticated-user";
 import { CreateEstimateDto, UpdateEstimateStatusDto } from "./dto/estimate.dto";
 import { ConvertEstimateToInvoiceDto } from "./dto/invoice.dto";
+import { ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Billing - Estimates")
 @Controller()
 export class EstimatesController {
   constructor(private readonly billingService: BillingService) {}
