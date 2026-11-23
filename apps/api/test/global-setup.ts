@@ -24,7 +24,10 @@ export default async function globalSetup() {
         consent_records, patient_entity_links, temporary_registrations, patients,
         uhid_counter, visits, appointments, treatment_catalog, dental_chart_entries,
         diagnoses, treatment_plans, treatment_plan_items, treatment_sessions,
-        treatment_session_assistants, clinical_notes, prescriptions
+        treatment_session_assistants, clinical_notes, prescriptions,
+        refunds, credit_notes, payment_allocations, receipts, payments,
+        invoice_items, invoices, estimate_items, estimates,
+        entity_treatment_prices, tax_profiles
       RESTART IDENTITY CASCADE;
     `,
   });

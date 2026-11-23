@@ -15,9 +15,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { TreatmentPlanCard } from "@/components/clinical/treatment-plan-card";
+import { BillingTab } from "@/components/billing/billing-tab";
 import { cn } from "@/lib/utils";
 
-const TABS = ["Overview", "Visits", "Appointments", "Treatment Plans"] as const;
+const TABS = ["Overview", "Visits", "Appointments", "Treatment Plans", "Billing"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function PatientDashboardPage() {
@@ -80,7 +81,7 @@ export default function PatientDashboardPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 max-w-3xl">
+    <div className={cn("flex flex-col gap-6", tab === "Billing" ? "max-w-5xl" : "max-w-3xl")}>
       <div className="flex items-center gap-3">
         <h1 className="text-2xl font-semibold">{patient.fullName}</h1>
         <Badge>{patient.uhid}</Badge>
@@ -233,6 +234,8 @@ export default function PatientDashboardPage() {
           ))}
         </div>
       )}
+
+      {tab === "Billing" && <BillingTab patientId={params.id} />}
     </div>
   );
 }

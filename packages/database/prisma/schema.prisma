@@ -46,6 +46,14 @@ model Entity {
   treatmentPlans         TreatmentPlan[]
   treatmentSessions      TreatmentSession[]
   prescriptions          Prescription[]
+  taxProfiles            TaxProfile[]
+  entityTreatmentPrices  EntityTreatmentPrice[]
+  estimates              Estimate[]
+  invoices               Invoice[]
+  payments               Payment[]
+  receipts               Receipt[]
+  creditNotes            CreditNote[]
+  refunds                Refund[]
 
   @@map("entities")
 }
@@ -143,6 +151,14 @@ model User {
   dentalChartEntriesRecorded    DentalChartEntry[]
   treatmentPlansCreated         TreatmentPlan[]
   clinicalNotesAuthored         ClinicalNote[]
+  estimatesCreated              Estimate[]
+  invoicesCreated               Invoice[]
+  paymentsReceived              Payment[]
+  receiptsIssued                Receipt[]
+  paymentAllocationsMade        PaymentAllocation[]
+  creditNotesIssued             CreditNote[]
+  refundsRequested              Refund[]                @relation("RefundRequestedBy")
+  refundsApproved               Refund[]                @relation("RefundApprovedBy")
 
   @@map("users")
 }
@@ -237,6 +253,9 @@ model Doctor {
   sessionsAssigned              TreatmentSession[]       @relation("SessionAssignedTo")
   sessionsPerformed             TreatmentSession[]       @relation("SessionPerformedBy")
   prescriptions                 Prescription[]
+  estimateItemsPlanned          EstimateItem[]
+  invoiceItemsPlanned           InvoiceItem[]            @relation("InvoiceItemPlannedBy")
+  invoiceItemsPerformed         InvoiceItem[]            @relation("InvoiceItemPerformedBy")
 
   @@map("doctors")
 }
@@ -431,6 +450,11 @@ model Patient {
   treatmentPlans         TreatmentPlan[]
   clinicalNotes          ClinicalNote[]
   prescriptions          Prescription[]
+  estimates              Estimate[]
+  invoices               Invoice[]
+  payments               Payment[]
+  creditNotes            CreditNote[]
+  refunds                Refund[]
 
   @@index([fullName])
   @@index([phone])
@@ -652,6 +676,8 @@ model Visit {
   treatmentSessions  TreatmentSession[]
   clinicalNotes      ClinicalNote[]
   prescriptions      Prescription[]
+  estimates          Estimate[]
+  invoices           Invoice[]
 
   @@unique([entityId, visitNumber])
   @@index([entityId, status])
@@ -678,7 +704,9 @@ model TreatmentCatalog {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  planItems TreatmentPlanItem[]
+  planItems             TreatmentPlanItem[]
+  entityTreatmentPrices EntityTreatmentPrice[]
+  estimateItems         EstimateItem[]
 
   @@map("treatment_catalog")
 }
@@ -794,7 +822,8 @@ model TreatmentPlanItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sessions TreatmentSession[]
+  sessions      TreatmentSession[]
+  estimateItems EstimateItem[]
 
   @@index([treatmentPlanId])
   @@map("treatment_plan_items")
@@ -841,7 +870,8 @@ model TreatmentSession {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  assistants TreatmentSessionAssistant[]
+  assistants   TreatmentSessionAssistant[]
+  invoiceItems InvoiceItem[]
 
   @@index([treatmentPlanItemId])
   @@index([entityId])
@@ -905,4 +935,367 @@ model Prescription {
 
   @@index([patientId])
   @@map("prescriptions")
+}
+
+// ---------------------------------------------------------------------------
+// Billing: estimates, invoices, receipts, payment allocation (Stage 5)
+// ---------------------------------------------------------------------------
+
+model TaxProfile {
+  id             String  @id @default(cuid())
+  entityId       String
+  entity         Entity  @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  name           String
+  rate           Decimal @db.Decimal(5, 2) // percentage, e.g. 18.00
+  componentsJson Json? // e.g. { "CGST": 9, "SGST": 9 }
+  isActive       Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  estimateItems EstimateItem[]
+  invoiceItems  InvoiceItem[]
+
+  @@unique([entityId, name])
+  @@map("tax_profiles")
+}
+
+/// Per-entity pricing override so the Trust can subsidize a procedure
+/// without forking TreatmentCatalog — see docs/ARCHITECTURE.md Section 5.9.
+model EntityTreatmentPrice {
+  entityId           String
+  entity             Entity           @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  treatmentCatalogId String
+  treatmentCatalog   TreatmentCatalog @relation(fields: [treatmentCatalogId], references: [id], onDelete: Cascade)
+  price              Decimal          @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([entityId, treatmentCatalogId])
+  @@map("entity_treatment_prices")
+}
+
+enum EstimateStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  SUPERSEDED
+  CONVERTED
+}
+
+model Estimate {
+  id             String @id @default(cuid())
+  estimateNumber String // per-entity sequence (EntitySettings.estimateNextSeq)
+
+  entityId  String
+  entity    Entity  @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  visitId   String?
+  visit     Visit?  @relation(fields: [visitId], references: [id], onDelete: SetNull)
+
+  version              Int       @default(1)
+  supersedesEstimateId String?   @unique
+  supersedesEstimate   Estimate? @relation("EstimateRevision", fields: [supersedesEstimateId], references: [id])
+  supersededBy         Estimate? @relation("EstimateRevision")
+
+  validUntil DateTime?      @db.Date
+  status     EstimateStatus @default(DRAFT)
+
+  grossTotal    Decimal @default(0) @db.Decimal(12, 2)
+  discountTotal Decimal @default(0) @db.Decimal(12, 2)
+  taxTotal      Decimal @default(0) @db.Decimal(12, 2)
+  netTotal      Decimal @default(0) @db.Decimal(12, 2)
+
+  createdById String?
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items EstimateItem[]
+
+  @@unique([entityId, estimateNumber])
+  @@index([patientId])
+  @@map("estimates")
+}
+
+/// invoicedQuantity/invoicedAmount are the enforcement mechanism for "never
+/// invoice the same estimate line twice" — every invoice-from-estimate
+/// write increments these inside the same transaction as the invoice
+/// insert, and a CHECK constraint (added in this model's migration)
+/// guarantees invoicedQuantity can never exceed quantity even under
+/// concurrent requests.
+model EstimateItem {
+  id String @id @default(cuid())
+
+  estimateId String
+  estimate   Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+
+  treatmentPlanItemId String?
+  treatmentPlanItem   TreatmentPlanItem? @relation(fields: [treatmentPlanItemId], references: [id], onDelete: SetNull)
+
+  toothNumber     Int?
+  plannedDoctorId String?
+  plannedDoctor   Doctor? @relation(fields: [plannedDoctorId], references: [id], onDelete: SetNull)
+
+  treatmentCatalogId String
+  treatmentCatalog   TreatmentCatalog @relation(fields: [treatmentCatalogId], references: [id], onDelete: Restrict)
+
+  quantity       Int         @default(1)
+  unitPrice      Decimal     @db.Decimal(12, 2)
+  discountAmount Decimal     @default(0) @db.Decimal(12, 2)
+  taxProfileId   String?
+  taxProfile     TaxProfile? @relation(fields: [taxProfileId], references: [id], onDelete: SetNull)
+  lineTotal      Decimal     @db.Decimal(12, 2)
+
+  invoicedQuantity Int     @default(0)
+  invoicedAmount   Decimal @default(0) @db.Decimal(12, 2)
+
+  invoiceItems InvoiceItem[]
+
+  @@index([estimateId])
+  @@map("estimate_items")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PARTIALLY_PAID
+  PAID
+  VOID
+}
+
+/// Posted (non-DRAFT) invoices are immutable at the application layer — no
+/// service method updates invoice_items once status leaves DRAFT; a
+/// correction is always a CreditNote or a new invoice referencing
+/// correctedByInvoiceId, never an in-place edit.
+model Invoice {
+  id            String @id @default(cuid())
+  invoiceNumber String // per-entity sequence (EntitySettings.invoiceNextSeq)
+
+  entityId  String
+  entity    Entity  @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  visitId   String?
+  visit     Visit?  @relation(fields: [visitId], references: [id], onDelete: SetNull)
+
+  invoiceDate DateTime      @default(now())
+  status      InvoiceStatus @default(DRAFT)
+
+  grossTotal    Decimal @default(0) @db.Decimal(12, 2)
+  discountTotal Decimal @default(0) @db.Decimal(12, 2)
+  taxTotal      Decimal @default(0) @db.Decimal(12, 2)
+  netTotal      Decimal @default(0) @db.Decimal(12, 2)
+  // Denormalized, recomputed inside the same transaction as any allocation
+  // change — never independently writable from the outside.
+  paidAmount    Decimal @default(0) @db.Decimal(12, 2)
+
+  voidedAt   DateTime?
+  voidReason String?
+
+  correctedByInvoiceId String?  @unique
+  correctedByInvoice   Invoice? @relation("InvoiceCorrection", fields: [correctedByInvoiceId], references: [id])
+  correctsInvoice      Invoice? @relation("InvoiceCorrection")
+
+  createdById String?
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items              InvoiceItem[]
+  paymentAllocations PaymentAllocation[]
+  creditNotes        CreditNote[]
+
+  @@unique([entityId, invoiceNumber])
+  @@index([patientId])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id String @id @default(cuid())
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  estimateItemId     String?
+  estimateItem       EstimateItem?     @relation(fields: [estimateItemId], references: [id], onDelete: SetNull)
+  treatmentSessionId String?
+  treatmentSession   TreatmentSession? @relation(fields: [treatmentSessionId], references: [id], onDelete: SetNull)
+
+  toothNumber Int?
+
+  plannedByDoctorId   String?
+  plannedByDoctor     Doctor? @relation("InvoiceItemPlannedBy", fields: [plannedByDoctorId], references: [id], onDelete: SetNull)
+  performedByDoctorId String?
+  performedByDoctor   Doctor? @relation("InvoiceItemPerformedBy", fields: [performedByDoctorId], references: [id], onDelete: SetNull)
+
+  description    String
+  quantity       Int         @default(1)
+  unitPrice      Decimal     @db.Decimal(12, 2)
+  discountAmount Decimal     @default(0) @db.Decimal(12, 2)
+  taxProfileId   String?
+  taxProfile     TaxProfile? @relation(fields: [taxProfileId], references: [id], onDelete: SetNull)
+  lineTotal      Decimal     @db.Decimal(12, 2)
+
+  @@index([invoiceId])
+  @@map("invoice_items")
+}
+
+enum PaymentMode {
+  CASH
+  UPI
+  CARD
+  BANK_TRANSFER
+  OTHER
+}
+
+/// A row here means money was actually received — distinct from an
+/// invoice simply existing. See docs/ARCHITECTURE.md Section 5.8.
+model Payment {
+  id String @id @default(cuid())
+
+  entityId  String
+  entity    Entity  @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  paymentDate          DateTime    @default(now())
+  amount               Decimal     @db.Decimal(12, 2)
+  mode                 PaymentMode
+  transactionReference String?
+  receivedById         String?
+  receivedBy           User?       @relation(fields: [receivedById], references: [id], onDelete: SetNull)
+  remarks              String?
+
+  // Set by the client on every create-payment request; a retried request
+  // with the same key returns the original payment instead of creating a
+  // second one — see PaymentsService.
+  idempotencyKey String? @unique
+
+  createdAt DateTime @default(now())
+
+  receipt     Receipt?
+  allocations PaymentAllocation[]
+  refunds     Refund[]
+
+  @@index([entityId, patientId])
+  @@map("payments")
+}
+
+/// Kept separate from Payment (the printable document vs. the financial
+/// event) — see docs/ARCHITECTURE.md Section 5.8. One receipt per payment
+/// for Stage 5; a reprint re-renders the same row rather than creating a
+/// new one.
+model Receipt {
+  id            String @id @default(cuid())
+  receiptNumber String // per-entity sequence (EntitySettings.receiptNextSeq)
+
+  paymentId String  @unique
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  entityId  String
+  entity    Entity  @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  issuedAt  DateTime @default(now())
+  cashierId String?
+  cashier   User?    @relation(fields: [cashierId], references: [id], onDelete: SetNull)
+  remarks   String?
+
+  @@unique([entityId, receiptNumber])
+  @@map("receipts")
+}
+
+/// The core linking table for "Balance = net_total - unreversed
+/// allocations - applied credit notes". Transaction-safety (never
+/// exceeding the invoice's balance or the payment's remaining amount, and
+/// never crossing entities) is enforced both in the service layer
+/// (row-locked transaction) and by DB triggers added in this model's
+/// migration, as defense in depth.
+model PaymentAllocation {
+  id String @id @default(cuid())
+
+  paymentId String
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+  amount        Decimal  @db.Decimal(12, 2)
+  allocatedAt   DateTime @default(now())
+  allocatedById String?
+  allocatedBy   User?    @relation(fields: [allocatedById], references: [id], onDelete: SetNull)
+
+  // Reversal never deletes the row — it sets these, preserving the full
+  // allocate/reverse history for audit.
+  reversedAt     DateTime?
+  reversalReason String?
+
+  @@index([paymentId])
+  @@index([invoiceId])
+  @@map("payment_allocations")
+}
+
+enum CreditNoteStatus {
+  ISSUED
+  VOID
+}
+
+model CreditNote {
+  id String @id @default(cuid())
+
+  entityId  String
+  entity    Entity   @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  patientId String
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  invoiceId String?
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  amount Decimal @db.Decimal(12, 2)
+  reason String
+
+  issuedById String?
+  issuedBy   User?            @relation(fields: [issuedById], references: [id], onDelete: SetNull)
+  issuedAt   DateTime         @default(now())
+  status     CreditNoteStatus @default(ISSUED)
+
+  @@index([patientId])
+  @@index([invoiceId])
+  @@map("credit_notes")
+}
+
+enum RefundStatus {
+  REQUESTED
+  APPROVED
+  COMPLETED
+  REJECTED
+}
+
+model Refund {
+  id String @id @default(cuid())
+
+  entityId  String
+  entity    Entity   @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  patientId String
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  paymentId String?
+  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  amount Decimal      @db.Decimal(12, 2)
+  reason String
+  mode   PaymentMode
+  status RefundStatus @default(REQUESTED)
+
+  requestedById String?
+  requestedBy   User?     @relation("RefundRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+  requestedAt   DateTime  @default(now())
+  approvedById  String?
+  approvedBy    User?     @relation("RefundApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  refundedAt    DateTime?
+
+  @@index([patientId])
+  @@map("refunds")
 }

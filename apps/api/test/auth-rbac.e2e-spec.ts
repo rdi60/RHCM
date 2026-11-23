@@ -1,5 +1,6 @@
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
+import * as argon2 from "argon2";
 import { authenticator } from "otplib";
 import { prisma } from "@rhcm/database";
 import { createTestApp, extractCookie } from "./test-app";
@@ -77,6 +78,10 @@ describe("Auth + RBAC (Stage 1)", () => {
       }
       const res = await request(server).post("/auth/login").send({ email, password: DEV_PASSWORD }).expect(401);
       expect(res.body.message).toMatch(/locked/i);
+
+      // nurse@rhcm.test is a shared fixture other spec files log in as —
+      // unlock it again so this test's side effect doesn't leak into them.
+      await prisma.user.update({ where: { email }, data: { failedLoginCount: 0, lockedUntil: null } });
     });
 
     it("logs in a non-MFA user directly", async () => {
@@ -199,6 +204,11 @@ describe("Auth + RBAC (Stage 1)", () => {
 
       await request(server).post("/auth/login").send({ email: "billing@rhcm.test", password: DEV_PASSWORD }).expect(401);
       await request(server).post("/auth/login").send({ email: "billing@rhcm.test", password: newPassword }).expect(200);
+
+      // billing@rhcm.test is a shared fixture other spec files log in with
+      // DEV_PASSWORD — restore it so this test's side effect doesn't leak.
+      const restoredHash = await argon2.hash(DEV_PASSWORD, { type: argon2.argon2id });
+      await prisma.user.update({ where: { email: "billing@rhcm.test" }, data: { passwordHash: restoredHash } });
     });
 
     it("rejects a reused or invalid reset token", async () => {

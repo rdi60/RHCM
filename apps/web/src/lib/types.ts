@@ -323,6 +323,165 @@ export interface VisitDetailRow extends VisitRow {
   appointment?: AppointmentRow | null;
 }
 
+// --- Billing (Stage 5) ------------------------------------------------------
+
+export interface TaxProfileRow {
+  id: string;
+  entityId: string;
+  name: string;
+  rate: string;
+  componentsJson: Record<string, number> | null;
+  isActive: boolean;
+}
+
+export interface EntityTreatmentPriceRow {
+  entityId: string;
+  treatmentCatalogId: string;
+  price: string;
+  treatmentCatalog: TreatmentCatalogRow;
+}
+
+export type EstimateStatus = "DRAFT" | "SENT" | "ACCEPTED" | "REJECTED" | "EXPIRED" | "SUPERSEDED" | "CONVERTED";
+
+export interface EstimateItemRow {
+  id: string;
+  estimateId: string;
+  treatmentPlanItemId: string | null;
+  toothNumber: number | null;
+  plannedDoctorId: string | null;
+  plannedDoctor?: { id: string; fullName: string } | null;
+  treatmentCatalogId: string;
+  treatmentCatalog?: TreatmentCatalogRow;
+  quantity: number;
+  unitPrice: string;
+  discountAmount: string;
+  taxProfileId: string | null;
+  taxProfile?: TaxProfileRow | null;
+  lineTotal: string;
+  invoicedQuantity: number;
+  invoicedAmount: string;
+}
+
+export interface EstimateRow {
+  id: string;
+  estimateNumber: string;
+  entityId: string;
+  patientId: string;
+  visitId: string | null;
+  version: number;
+  supersedesEstimateId: string | null;
+  validUntil: string | null;
+  status: EstimateStatus;
+  grossTotal: string;
+  discountTotal: string;
+  taxTotal: string;
+  netTotal: string;
+  createdAt: string;
+  items: EstimateItemRow[];
+}
+
+export type InvoiceStatus = "DRAFT" | "ISSUED" | "PARTIALLY_PAID" | "PAID" | "VOID";
+
+export interface InvoiceItemRow {
+  id: string;
+  invoiceId: string;
+  estimateItemId: string | null;
+  treatmentSessionId: string | null;
+  toothNumber: number | null;
+  plannedByDoctorId: string | null;
+  performedByDoctorId: string | null;
+  description: string;
+  quantity: number;
+  unitPrice: string;
+  discountAmount: string;
+  taxProfileId: string | null;
+  lineTotal: string;
+}
+
+export interface InvoiceRow {
+  id: string;
+  invoiceNumber: string;
+  entityId: string;
+  patientId: string;
+  visitId: string | null;
+  invoiceDate: string;
+  status: InvoiceStatus;
+  grossTotal: string;
+  discountTotal: string;
+  taxTotal: string;
+  netTotal: string;
+  paidAmount: string;
+  voidedAt: string | null;
+  voidReason: string | null;
+  correctedByInvoiceId: string | null;
+  balanceDue?: string;
+  items: InvoiceItemRow[];
+}
+
+export type PaymentMode = "CASH" | "UPI" | "CARD" | "BANK_TRANSFER" | "OTHER";
+
+export interface ReceiptRow {
+  id: string;
+  receiptNumber: string;
+  paymentId: string;
+  entityId: string;
+  issuedAt: string;
+  cashierId: string | null;
+  remarks: string | null;
+}
+
+export interface PaymentAllocationRow {
+  id: string;
+  paymentId: string;
+  invoiceId: string;
+  invoice?: { id: string; invoiceNumber: string };
+  amount: string;
+  allocatedAt: string;
+  reversedAt: string | null;
+  reversalReason: string | null;
+}
+
+export interface PaymentRow {
+  id: string;
+  entityId: string;
+  patientId: string;
+  paymentDate: string;
+  amount: string;
+  mode: PaymentMode;
+  transactionReference: string | null;
+  remarks: string | null;
+  receipt?: ReceiptRow | null;
+  allocations?: PaymentAllocationRow[];
+}
+
+export type CreditNoteStatus = "ISSUED" | "VOID";
+
+export interface CreditNoteRow {
+  id: string;
+  entityId: string;
+  patientId: string;
+  invoiceId: string | null;
+  amount: string;
+  reason: string;
+  issuedAt: string;
+  status: CreditNoteStatus;
+}
+
+export type RefundStatus = "REQUESTED" | "APPROVED" | "COMPLETED" | "REJECTED";
+
+export interface RefundRow {
+  id: string;
+  entityId: string;
+  patientId: string;
+  paymentId: string | null;
+  amount: string;
+  reason: string;
+  mode: PaymentMode;
+  status: RefundStatus;
+  requestedAt: string;
+  refundedAt: string | null;
+}
+
 export interface AuditLogRow {
   id: string;
   occurredAt: string;

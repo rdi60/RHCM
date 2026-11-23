@@ -14,7 +14,7 @@ import {
   type SystemRoleName,
 } from "@rhcm/shared";
 import { SecretCipher } from "./secret-cipher";
-import { nextTempRegistrationId, nextUhid, nextVisitNumber } from "../src/sequences";
+import { nextTempRegistrationId, nextUhid, nextVisitNumber, nextEstimateNumber, nextInvoiceNumber, nextReceiptNumber } from "../src/sequences";
 import { PrismaClient, ResourceType } from "../generated/client";
 
 const prisma = new PrismaClient();
@@ -610,6 +610,193 @@ async function main() {
       },
     });
   }
+
+  // --- Billing (Stage 5): tax profile, an estimate awaiting conversion, a
+  // fully-paid invoice with a credit note and a completed refund, and a
+  // second, partially-paid invoice for a different patient. ---------------
+
+  const gst18 = await prisma.taxProfile.upsert({
+    where: { entityId_name: { entityId: entities.CLINIC.id, name: "GST 18%" } },
+    update: {},
+    create: { entityId: entities.CLINIC.id, name: "GST 18%", rate: 18, componentsJson: { CGST: 9, SGST: 9 } },
+  });
+
+  const rctSession = await prisma.treatmentSession.findFirst({ where: { visitId: raviVisit.id, procedureCode: "RCT-SINGLE" } });
+  const crownPlanItem = await prisma.treatmentPlanItem.findFirst({
+    where: { treatmentPlan: { patientId: ravi.id, entityId: entities.CLINIC.id }, treatmentCatalogId: catalogByCode["CROWN-PFM"].id },
+  });
+
+  // An ACCEPTED estimate for the crown, left un-invoiced so the seeded demo
+  // has something to walk through "Convert to invoice" with.
+  let crownEstimate = await prisma.estimate.findFirst({ where: { entityId: entities.CLINIC.id, patientId: ravi.id, status: "ACCEPTED" } });
+  if (!crownEstimate) {
+    const estimateNumber = await nextEstimateNumber(prisma, entities.CLINIC.id);
+    crownEstimate = await prisma.estimate.create({
+      data: {
+        estimateNumber,
+        entityId: entities.CLINIC.id,
+        patientId: ravi.id,
+        visitId: raviVisit.id,
+        status: "ACCEPTED",
+        createdById: billingExec.id,
+        grossTotal: 6000,
+        discountTotal: 0,
+        taxTotal: 1080,
+        netTotal: 7080,
+        items: {
+          create: [
+            {
+              treatmentPlanItemId: crownPlanItem?.id,
+              toothNumber: 46,
+              plannedDoctorId: doctor.id,
+              treatmentCatalogId: catalogByCode["CROWN-PFM"].id,
+              quantity: 1,
+              unitPrice: 6000,
+              discountAmount: 0,
+              taxProfileId: gst18.id,
+              lineTotal: 6000,
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  // An already-issued, already-paid invoice for the completed RCT, with a
+  // goodwill credit note and a small completed refund — exercises the full
+  // estimate-free "direct invoice" path plus every money-movement screen.
+  let rctInvoice = await prisma.invoice.findFirst({ where: { entityId: entities.CLINIC.id, patientId: ravi.id, status: "PAID" } });
+  if (!rctInvoice) {
+    const invoiceNumber = await nextInvoiceNumber(prisma, entities.CLINIC.id);
+    rctInvoice = await prisma.invoice.create({
+      data: {
+        invoiceNumber,
+        entityId: entities.CLINIC.id,
+        patientId: ravi.id,
+        visitId: raviVisit.id,
+        status: "ISSUED",
+        createdById: billingExec.id,
+        grossTotal: 5000,
+        discountTotal: 0,
+        taxTotal: 900,
+        netTotal: 5900,
+        items: {
+          create: [
+            {
+              treatmentSessionId: rctSession?.id,
+              toothNumber: 46,
+              performedByDoctorId: doctor.id,
+              description: "Root Canal Treatment (Single Sitting)",
+              quantity: 1,
+              unitPrice: 5000,
+              discountAmount: 0,
+              taxProfileId: gst18.id,
+              lineTotal: 5000,
+            },
+          ],
+        },
+      },
+    });
+
+    const paymentNumber = `SEED-${rctInvoice.id.slice(-8)}`;
+    const rctPayment = await prisma.payment.create({
+      data: {
+        entityId: entities.CLINIC.id,
+        patientId: ravi.id,
+        amount: 5900,
+        mode: "CASH",
+        receivedById: accountant.id,
+        idempotencyKey: paymentNumber,
+      },
+    });
+    const receiptNumber = await nextReceiptNumber(prisma, entities.CLINIC.id);
+    await prisma.receipt.create({
+      data: { receiptNumber, paymentId: rctPayment.id, entityId: entities.CLINIC.id, cashierId: accountant.id },
+    });
+    await prisma.paymentAllocation.create({
+      data: { paymentId: rctPayment.id, invoiceId: rctInvoice.id, amount: 5900, allocatedById: accountant.id },
+    });
+    // Trigger-maintained (trg_payment_allocation_insupd) — reload to pick up paidAmount/status.
+    rctInvoice = await prisma.invoice.findUniqueOrThrow({ where: { id: rctInvoice.id } });
+
+    await prisma.creditNote.create({
+      data: {
+        entityId: entities.CLINIC.id,
+        patientId: ravi.id,
+        invoiceId: rctInvoice.id,
+        amount: 100,
+        reason: "Loyalty goodwill discount",
+        issuedById: accountant.id,
+      },
+    });
+
+    await prisma.refund.create({
+      data: {
+        entityId: entities.CLINIC.id,
+        patientId: ravi.id,
+        paymentId: rctPayment.id,
+        amount: 100,
+        reason: "Refunded the goodwill credit note amount in cash",
+        mode: "CASH",
+        status: "COMPLETED",
+        requestedById: billingExec.id,
+        approvedById: accountant.id,
+        refundedAt: new Date(),
+      },
+    });
+  }
+
+  // A second, PARTIALLY_PAID invoice for a different patient — the
+  // 50%-paid state is otherwise easy to forget to demo.
+  let priyaInvoice = await prisma.invoice.findFirst({ where: { entityId: entities.CLINIC.id, patientId: priya2.id } });
+  if (!priyaInvoice) {
+    const invoiceNumber = await nextInvoiceNumber(prisma, entities.CLINIC.id);
+    priyaInvoice = await prisma.invoice.create({
+      data: {
+        invoiceNumber,
+        entityId: entities.CLINIC.id,
+        patientId: priya2.id,
+        status: "ISSUED",
+        createdById: billingExec.id,
+        grossTotal: 800,
+        discountTotal: 0,
+        taxTotal: 0,
+        netTotal: 800,
+        items: {
+          create: [
+            {
+              description: "Consultation + Scaling & Polishing",
+              quantity: 1,
+              unitPrice: 800,
+              discountAmount: 0,
+              lineTotal: 800,
+            },
+          ],
+        },
+      },
+    });
+
+    const priyaPayment = await prisma.payment.create({
+      data: {
+        entityId: entities.CLINIC.id,
+        patientId: priya2.id,
+        amount: 400,
+        mode: "UPI",
+        transactionReference: "UPI-SEED-0001",
+        receivedById: accountant.id,
+        idempotencyKey: `SEED-${priyaInvoice.id.slice(-8)}`,
+      },
+    });
+    const priyaReceiptNumber = await nextReceiptNumber(prisma, entities.CLINIC.id);
+    await prisma.receipt.create({
+      data: { receiptNumber: priyaReceiptNumber, paymentId: priyaPayment.id, entityId: entities.CLINIC.id, cashierId: accountant.id },
+    });
+    await prisma.paymentAllocation.create({
+      data: { paymentId: priyaPayment.id, invoiceId: priyaInvoice.id, amount: 400, allocatedById: accountant.id },
+    });
+  }
+
+  console.log(`Seeded billing: 1 tax profile, 1 ACCEPTED estimate awaiting conversion, 1 fully-paid invoice (+credit note +refund), 1 partially-paid invoice.`);
 
   console.log(`Seeded treatment catalog (${TREATMENT_CATALOG.length} procedures) and clinical history for ${ravi.fullName}.`);
 

@@ -58,3 +58,48 @@ export async function nextVisitNumber(tx: Executor, entityId: string): Promise<s
   const { visitPrefix, seq } = rows[0];
   return `${visitPrefix}-${String(seq).padStart(6, "0")}`;
 }
+
+/** Same pattern, for estimate numbers (entity_settings.estimateNextSeq). */
+export async function nextEstimateNumber(tx: Executor, entityId: string): Promise<string> {
+  const rows = await tx.$queryRaw<{ estimatePrefix: string; seq: number }[]>`
+    UPDATE entity_settings
+    SET "estimateNextSeq" = "estimateNextSeq" + 1
+    WHERE "entityId" = ${entityId}
+    RETURNING "estimatePrefix", "estimateNextSeq" - 1 AS seq
+  `;
+  if (rows.length === 0) {
+    throw new Error(`No entity_settings row for entity ${entityId}`);
+  }
+  const { estimatePrefix, seq } = rows[0];
+  return `${estimatePrefix}-${String(seq).padStart(6, "0")}`;
+}
+
+/** Same pattern, for invoice numbers (entity_settings.invoiceNextSeq). */
+export async function nextInvoiceNumber(tx: Executor, entityId: string): Promise<string> {
+  const rows = await tx.$queryRaw<{ invoicePrefix: string; seq: number }[]>`
+    UPDATE entity_settings
+    SET "invoiceNextSeq" = "invoiceNextSeq" + 1
+    WHERE "entityId" = ${entityId}
+    RETURNING "invoicePrefix", "invoiceNextSeq" - 1 AS seq
+  `;
+  if (rows.length === 0) {
+    throw new Error(`No entity_settings row for entity ${entityId}`);
+  }
+  const { invoicePrefix, seq } = rows[0];
+  return `${invoicePrefix}-${String(seq).padStart(6, "0")}`;
+}
+
+/** Same pattern, for receipt numbers (entity_settings.receiptNextSeq). */
+export async function nextReceiptNumber(tx: Executor, entityId: string): Promise<string> {
+  const rows = await tx.$queryRaw<{ receiptPrefix: string; seq: number }[]>`
+    UPDATE entity_settings
+    SET "receiptNextSeq" = "receiptNextSeq" + 1
+    WHERE "entityId" = ${entityId}
+    RETURNING "receiptPrefix", "receiptNextSeq" - 1 AS seq
+  `;
+  if (rows.length === 0) {
+    throw new Error(`No entity_settings row for entity ${entityId}`);
+  }
+  const { receiptPrefix, seq } = rows[0];
+  return `${receiptPrefix}-${String(seq).padStart(6, "0")}`;
+}

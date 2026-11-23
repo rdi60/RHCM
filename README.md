@@ -40,9 +40,33 @@ reconstructable), tooth-wise diagnoses, multi-session treatment planning
 being the spec's "Treatment ID", tracking who planned, who it's assigned
 to, and who actually performed it — auto-resolved from the acting
 doctor's own account, not just whoever's logged in), append-only clinical
-notes with an addendum chain for corrections, and prescriptions. Later
-stages (billing, documents/reporting) build on this foundation — see
-`docs/ARCHITECTURE.md` Section 9 for the full plan.
+notes with an addendum chain for corrections, and prescriptions.
+
+**Stage 5** (this state of the repo) adds billing — a new **Billing** tab
+on the Patient Dashboard covering: tax profiles and per-entity treatment
+pricing overrides; estimates (`DRAFT → SENT → ACCEPTED/REJECTED/EXPIRED`,
+with a revise-into-a-new-version flow that supersedes the original) with
+a print view; converting an accepted estimate's lines into an invoice —
+fully or partially, any number of times, with **DB CHECK constraints**
+(`estimate_items_invoiced_qty_check`/`_invoiced_amount_check`) making it
+impossible to invoice the same line twice even under concurrent requests;
+direct ad hoc invoicing; posted invoices are immutable — correcting one
+voids it and atomically issues a linked replacement; payments with
+idempotent recording (a retried submit returns the original payment, never
+a duplicate) and one receipt minted per payment; payment allocation —
+splitting a payment across invoices, or one invoice across payments, with
+**hand-written Postgres trigger functions** (not just application code)
+enforcing that allocations can never exceed an invoice's balance, a
+payment's own amount, or cross an entity boundary, and automatically
+keeping `invoice.paidAmount`/`status` (`ISSUED → PARTIALLY_PAID → PAID`)
+in sync as allocations are made or reversed; credit notes; and a refund
+workflow (`REQUESTED → APPROVED → COMPLETED`/`REJECTED`) requiring
+`refund.approve` to move past REQUESTED, with the same trigger-enforced
+cap against the original payment's amount. See `packages/database/prisma/
+schema.prisma`'s `Invoice`/`PaymentAllocation` doc comments and the
+`20261122170000_stage5_billing` migration's hand-written SQL for the full
+enforcement design. Later stages (documents, reporting) build on this
+foundation — see `docs/ARCHITECTURE.md` Section 9 for the full plan.
 
 ## Stack
 
@@ -166,6 +190,18 @@ clinical note with one addendum, and a two-drug prescription. Open
 `/patients/<Ravi's id>` → **Visits** tab, or just search "Ravi" from
 Patients, to see it end to end.
 
+### Synthetic seed billing data
+
+For Ravi Kumar (Clinic): a `GST 18%` tax profile; an `ACCEPTED` estimate
+for a crown (₹6000 + 18% GST = ₹7080) left un-invoiced, so you can walk
+through **Convert to invoice** yourself; and a fully-paid invoice for his
+completed root canal (₹5000 + 18% GST = ₹5900, `PAID`) with a ₹100
+goodwill credit note and a matching ₹100 `COMPLETED` refund against that
+payment. For Priya Sharma (second record, Clinic): an `ISSUED` invoice
+(₹800, no tax) half-paid by a ₹400 UPI payment, left `PARTIALLY_PAID` so
+that status isn't easy to forget to demo. Open `/patients/<Ravi's id>` →
+**Billing** tab to see it end to end.
+
 ### First production Super Administrator
 
 Never seed synthetic data in production. Instead:
@@ -185,7 +221,12 @@ existing entity. See `docs/ARCHITECTURE.md` Section 4.3.
 pnpm --filter @rhcm/api test
 
 # End-to-end (spins up a dedicated rhcm_test Postgres database; see
-# apps/api/.env.test and apps/api/test/global-setup.ts)
+# apps/api/.env.test and apps/api/test/global-setup.ts). Runs with
+# --runInBand: several spec files log in as the same shared seeded
+# accounts (e.g. superadmin@rhcm.test), and a couple of auth-rbac's own
+# tests mutate shared fixtures (account lockout, password reset) before
+# restoring them — serial execution keeps that deterministic instead of
+# racing against other files' beforeAll logins.
 pnpm --filter @rhcm/api test:e2e
 ```
 
@@ -252,6 +293,36 @@ real database and a real NestJS instance:
 - a doctor can issue a prescription; a receptionist cannot
 - entity-scoped 404s on a visit's diagnoses/notes/prescriptions from the
   wrong entity
+
+`apps/api/test/billing.e2e-spec.ts` (Stage 5) additionally covers:
+
+- estimate totals computed exactly (gross/discount/tax/net, tax applied
+  after discount), the `DRAFT → SENT → ACCEPTED/REJECTED` workflow with
+  invalid jumps rejected, and revising an estimate supersedes the original
+  and bumps its version
+- partial estimate→invoice conversion tracks `invoicedQuantity`; a second
+  conversion of the same line beyond what's left is rejected; converting
+  the remainder flips the estimate to `CONVERTED`; and under **5
+  concurrent** conversion requests for the same line, exactly one succeeds
+  — the `estimate_items` CHECK constraints are the real backstop, not just
+  the service-layer pre-check
+- a posted invoice can't be voided while it has an active payment
+  allocation; correcting one voids the original and links a fresh
+  replacement via `correctedByInvoiceId`
+- payment recording is idempotent (same `idempotencyKey` ⇒ same payment,
+  never a duplicate) and mints exactly one receipt
+- payment allocation never exceeds an invoice's balance or a payment's
+  remaining amount; never crosses entities (a Trust payment can't be
+  allocated to a Clinic invoice); keeps `invoice.paidAmount`/`status` in
+  sync as allocations are made and reversed; and under **5 concurrent**
+  allocation requests for the same invoice/payment, exactly one succeeds
+- credit notes issue/void; refunds walk `REQUESTED → APPROVED →
+  COMPLETED`/`REJECTED` with the approval gate enforced, and never refund
+  more than the original payment's amount even across multiple approved
+  refunds racing to complete
+- RBAC denials for every billing action (`estimate.create`,
+  `invoice.create`/`invoice.void`, `payment.receive`/`payment.allocate`,
+  `refund.approve`) and entity-scoped 404s on estimates/invoices/receipts
 
 ## Project layout
 
