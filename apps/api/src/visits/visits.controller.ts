@@ -7,7 +7,9 @@ import { UpdateVisitStatusDto } from "./dto/update-visit-status.dto";
 import { AssignVisitDto } from "./dto/assign-visit.dto";
 import { UpdateVisitClinicalDto } from "./dto/update-visit-clinical.dto";
 import type { AuthenticatedUser } from "../common/types/authenticated-user";
+import { ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Visits")
 @Controller("visits")
 export class VisitsController {
   constructor(private readonly visitsService: VisitsService) {}

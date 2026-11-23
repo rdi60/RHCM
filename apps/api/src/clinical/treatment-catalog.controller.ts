@@ -2,7 +2,9 @@ import { Controller, Get, Query } from "@nestjs/common";
 import { ClinicalService } from "./clinical.service";
 import { RequireGlobalPermissions } from "../common/decorators/permissions.decorator";
 import { PERMISSIONS } from "@rhcm/shared";
+import { ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Clinical - Treatment Catalog")
 @Controller("treatment-catalog")
 export class TreatmentCatalogController {
   constructor(private readonly clinicalService: ClinicalService) {}

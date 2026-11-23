@@ -7,7 +7,9 @@ import { CreateDoctorDto } from "./dto/create-doctor.dto";
 import { AssignEntityDto } from "./dto/assignment.dto";
 import { ReplaceAvailabilityDto, CreateDoctorLeaveDto } from "./dto/availability.dto";
 import type { AuthenticatedUser } from "../common/types/authenticated-user";
+import { ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Staff - Doctors")
 @Controller("doctors")
 export class DoctorsController {
   constructor(private readonly doctorsService: DoctorsService) {}

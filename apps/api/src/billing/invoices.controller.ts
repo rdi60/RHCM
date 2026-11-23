@@ -5,7 +5,9 @@ import { RequirePermissions } from "../common/decorators/permissions.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import type { AuthenticatedUser } from "../common/types/authenticated-user";
 import { CorrectInvoiceDto, CreateInvoiceDto, VoidInvoiceDto } from "./dto/invoice.dto";
+import { ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Billing - Invoices")
 @Controller()
 export class InvoicesController {
   constructor(private readonly billingService: BillingService) {}

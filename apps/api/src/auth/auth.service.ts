@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, UnauthorizedException, BadRequestException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import type { Request } from "express";
 import * as argon2 from "argon2";
 import { authenticator } from "otplib";
 import { createHash, randomBytes } from "node:crypto";
@@ -10,6 +11,22 @@ import { SecretCipher } from "../common/crypto/secret-cipher";
 import type { LoginDto } from "./dto/login.dto";
 import type { MfaEnableDto, MfaVerifyDto } from "./dto/mfa.dto";
 import type { PasswordResetDto } from "./dto/password.dto";
+
+const TOTP_STEP_SECONDS = 30;
+
+/**
+ * Regenerates the session ID (session fixation protection: a session ID
+ * that existed before authentication — e.g. one an attacker planted —
+ * never becomes a logged-in session). Always call this immediately
+ * before writing any new privilege (pendingMfaUserId, userId) onto the
+ * session; the caller sets those fields fresh afterward, since nothing
+ * on a pre-login session is worth preserving across the new ID.
+ */
+function regenerateSession(req: Request): Promise<void> {
+  return new Promise((resolve, reject) => {
+    req.session.regenerate((err) => (err ? reject(err) : resolve()));
+  });
+}
 
 interface RequestMeta {
   ip?: string;
@@ -34,7 +51,7 @@ export class AuthService {
     this.resetTokenTtlMinutes = Number(this.config.get("PASSWORD_RESET_TOKEN_TTL_MINUTES") ?? 30);
   }
 
-  async login(dto: LoginDto, session: any, meta: RequestMeta) {
+  async login(dto: LoginDto, req: Request, meta: RequestMeta) {
     const user = await this.prisma.client.user.findUnique({ where: { email: dto.email } });
 
     if (!user) {
@@ -92,9 +109,10 @@ export class AuthService {
       data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() },
     });
 
+    await regenerateSession(req);
+
     if (user.mfaEnabled) {
-      session.pendingMfaUserId = user.id;
-      session.userId = undefined;
+      req.session.pendingMfaUserId = user.id;
       await this.audit.record({
         actorUserId: user.id,
         action: "auth.login_password_ok_mfa_pending",
@@ -106,8 +124,8 @@ export class AuthService {
       return { mfaRequired: true };
     }
 
-    session.userId = user.id;
-    session.loginAt = Date.now();
+    req.session.userId = user.id;
+    req.session.loginAt = Date.now();
     await this.audit.record({
       actorUserId: user.id,
       action: "auth.login_success",
@@ -119,17 +137,22 @@ export class AuthService {
     return { mfaRequired: false, user: { id: user.id, email: user.email } };
   }
 
-  async verifyMfa(dto: MfaVerifyDto, session: any, meta: RequestMeta) {
-    const pendingUserId: string | undefined = session.pendingMfaUserId;
+  async verifyMfa(dto: MfaVerifyDto, req: Request, meta: RequestMeta) {
+    const pendingUserId: string | undefined = req.session.pendingMfaUserId;
     if (!pendingUserId) throw new UnauthorizedException("No pending MFA challenge");
 
     const user = await this.prisma.client.user.findUnique({ where: { id: pendingUserId } });
     if (!user || !user.mfaSecretEncrypted) throw new UnauthorizedException("No pending MFA challenge");
 
     const secret = this.cipher.decrypt(user.mfaSecretEncrypted);
-    const valid = authenticator.check(dto.code, secret);
+    // checkDelta (not check) so a valid code's exact time-step is known —
+    // that's what makes replay rejection below possible: `check` alone
+    // can't tell "valid code" from "valid code I've already accepted".
+    const delta = authenticator.checkDelta(dto.code, secret);
+    const currentStep = delta === null ? null : Math.floor(Date.now() / 1000 / TOTP_STEP_SECONDS) + delta;
+    const alreadyUsed = currentStep !== null && user.lastMfaStep !== null && currentStep <= user.lastMfaStep;
 
-    if (!valid) {
+    if (delta === null || alreadyUsed) {
       await this.audit.record({
         actorUserId: user.id,
         action: "auth.mfa_failed",
@@ -137,13 +160,15 @@ export class AuthService {
         resourceId: user.id,
         ipAddress: meta.ip,
         userAgent: meta.userAgent,
+        after: { reason: delta === null ? "invalid_code" : "replayed_code" },
       });
       throw new UnauthorizedException("Invalid authentication code");
     }
 
-    session.userId = user.id;
-    session.pendingMfaUserId = undefined;
-    session.loginAt = Date.now();
+    await this.prisma.client.user.update({ where: { id: user.id }, data: { lastMfaStep: currentStep } });
+    await regenerateSession(req);
+    req.session.userId = user.id;
+    req.session.loginAt = Date.now();
     await this.audit.record({
       actorUserId: user.id,
       action: "auth.mfa_success",

@@ -5,7 +5,9 @@ import { RequirePermissions } from "../common/decorators/permissions.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import type { AuthenticatedUser } from "../common/types/authenticated-user";
 import { CreateCreditNoteDto, VoidCreditNoteDto } from "./dto/credit-note.dto";
+import { ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Billing - Credit Notes")
 @Controller()
 export class CreditNotesController {
   constructor(private readonly billingService: BillingService) {}

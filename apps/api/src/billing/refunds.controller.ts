@@ -5,7 +5,9 @@ import { RequirePermissions } from "../common/decorators/permissions.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import type { AuthenticatedUser } from "../common/types/authenticated-user";
 import { CreateRefundDto, RefundActionDto } from "./dto/refund.dto";
+import { ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Billing - Refunds")
 @Controller()
 export class RefundsController {
   constructor(private readonly billingService: BillingService) {}

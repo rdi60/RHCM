@@ -6,7 +6,9 @@ import { CurrentUser } from "../common/decorators/current-user.decorator";
 import type { AuthenticatedUser } from "../common/types/authenticated-user";
 import { CreateTaxProfileDto, UpdateTaxProfileDto } from "./dto/tax-profile.dto";
 import { UpsertEntityTreatmentPriceDto } from "./dto/entity-treatment-price.dto";
+import { ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Billing - Tax Profiles")
 @Controller()
 export class TaxProfilesController {
   constructor(private readonly billingService: BillingService) {}

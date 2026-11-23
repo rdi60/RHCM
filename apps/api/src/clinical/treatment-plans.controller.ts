@@ -7,7 +7,9 @@ import { AddTreatmentPlanItemDto, CreateTreatmentPlanDto } from "./dto/treatment
 import { UpdateTreatmentPlanItemStatusDto, UpdateTreatmentPlanStatusDto } from "./dto/treatment-plan-status.dto";
 import { CreateTreatmentSessionDto, UpdateTreatmentSessionDto } from "./dto/treatment-session.dto";
 import type { AuthenticatedUser } from "../common/types/authenticated-user";
+import { ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Clinical - Treatment Plans")
 @Controller()
 export class TreatmentPlansController {
   constructor(private readonly clinicalService: ClinicalService) {}

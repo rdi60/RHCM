@@ -7,7 +7,9 @@ import { CreateDiagnosisDto } from "./dto/diagnosis.dto";
 import { CreateAddendumDto, CreateClinicalNoteDto } from "./dto/clinical-note.dto";
 import { CreatePrescriptionDto } from "./dto/prescription.dto";
 import type { AuthenticatedUser } from "../common/types/authenticated-user";
+import { ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Clinical - Visit Notes & Prescriptions")
 @Controller()
 export class VisitClinicalController {
   constructor(private readonly clinicalService: ClinicalService) {}

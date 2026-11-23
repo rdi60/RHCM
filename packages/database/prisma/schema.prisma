@@ -137,6 +137,10 @@ model User {
   passwordResetExpiresAt DateTime?
 
   pendingMfaSecretEncrypted String?
+  /// The TOTP time-step last accepted for this user — a code for this step
+  /// or any earlier one is rejected, so a captured valid code can't be
+  /// replayed again within its own 30s validity window.
+  lastMfaStep               Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

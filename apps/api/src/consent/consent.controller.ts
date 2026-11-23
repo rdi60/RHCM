@@ -5,7 +5,9 @@ import { RequirePermissions } from "../common/decorators/permissions.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import type { AuthenticatedUser } from "../common/types/authenticated-user";
 import { CreateConsentRecordDto } from "./dto/consent.dto";
+import { ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Consent")
 @Controller()
 export class ConsentController {
   constructor(private readonly consentService: ConsentService) {}
