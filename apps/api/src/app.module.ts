@@ -14,6 +14,10 @@ import { AppointmentsModule } from "./appointments/appointments.module";
 import { VisitsModule } from "./visits/visits.module";
 import { ClinicalModule } from "./clinical/clinical.module";
 import { BillingModule } from "./billing/billing.module";
+import { StorageModule } from "./storage/storage.module";
+import { DocumentsModule } from "./documents/documents.module";
+import { ConsentModule } from "./consent/consent.module";
+import { ReportsModule } from "./reports/reports.module";
 import { SessionAuthGuard } from "./common/guards/session-auth.guard";
 import { PermissionsGuard } from "./common/guards/permissions.guard";
 
@@ -33,6 +37,10 @@ import { PermissionsGuard } from "./common/guards/permissions.guard";
     VisitsModule,
     ClinicalModule,
     BillingModule,
+    StorageModule,
+    DocumentsModule,
+    ConsentModule,
+    ReportsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

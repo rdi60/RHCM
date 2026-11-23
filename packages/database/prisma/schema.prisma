@@ -54,6 +54,7 @@ model Entity {
   receipts               Receipt[]
   creditNotes            CreditNote[]
   refunds                Refund[]
+  patientDocuments       PatientDocument[]
 
   @@map("entities")
 }
@@ -159,6 +160,7 @@ model User {
   creditNotesIssued             CreditNote[]
   refundsRequested              Refund[]                @relation("RefundRequestedBy")
   refundsApproved               Refund[]                @relation("RefundApprovedBy")
+  patientDocuments              PatientDocument[]
 
   @@map("users")
 }
@@ -455,6 +457,7 @@ model Patient {
   payments               Payment[]
   creditNotes            CreditNote[]
   refunds                Refund[]
+  patientDocuments       PatientDocument[]
 
   @@index([fullName])
   @@index([phone])
@@ -678,6 +681,7 @@ model Visit {
   prescriptions      Prescription[]
   estimates          Estimate[]
   invoices           Invoice[]
+  patientDocuments   PatientDocument[]
 
   @@unique([entityId, visitNumber])
   @@index([entityId, status])
@@ -870,8 +874,9 @@ model TreatmentSession {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  assistants   TreatmentSessionAssistant[]
-  invoiceItems InvoiceItem[]
+  assistants       TreatmentSessionAssistant[]
+  invoiceItems     InvoiceItem[]
+  patientDocuments PatientDocument[]
 
   @@index([treatmentPlanItemId])
   @@index([entityId])
@@ -1298,4 +1303,53 @@ model Refund {
 
   @@index([patientId])
   @@map("refunds")
+}
+
+// ---------------------------------------------------------------------------
+// Patient documents (Stage 6)
+// ---------------------------------------------------------------------------
+
+enum DocumentScanStatus {
+  PENDING
+  CLEAN
+  INFECTED
+  ERROR
+}
+
+/// Metadata only — the actual bytes live in private S3-compatible storage
+/// (MinIO locally) at `storageKey`, never behind a public URL. Every
+/// upload/download goes through a short-lived presigned URL minted by
+/// StorageService; this row is what makes a key discoverable/authorized
+/// at all. `scanStatus` starts PENDING and is flipped by the confirm step
+/// after upload — a real deployment would instead flip it from an async
+/// AV-scan webhook/worker and reject serving anything not CLEAN (see
+/// DocumentsService.confirmUpload's doc comment).
+model PatientDocument {
+  id                 String            @id @default(cuid())
+  patientId          String
+  patient            Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  entityId           String
+  entity             Entity            @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  visitId            String?
+  visit              Visit?            @relation(fields: [visitId], references: [id], onDelete: SetNull)
+  treatmentSessionId String?
+  treatmentSession   TreatmentSession? @relation(fields: [treatmentSessionId], references: [id], onDelete: SetNull)
+
+  category         String // e.g. "xray", "consent_form", "id_proof", "insurance", "other"
+  storageKey       String @unique
+  originalFilename String
+  mimeType         String
+  sizeBytes        Int
+
+  uploadedById String?
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  uploadedAt   DateTime @default(now())
+
+  scanStatus     DocumentScanStatus @default(PENDING)
+  retentionUntil DateTime?          @db.Date
+  deletedAt      DateTime?
+
+  @@index([patientId])
+  @@index([entityId])
+  @@map("patient_documents")
 }

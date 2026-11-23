@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: rhcm
+          POSTGRES_PASSWORD: rhcm_dev_password
+          POSTGRES_DB: rhcm_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U rhcm"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://rhcm:rhcm_dev_password@localhost:5432/rhcm_test?schema=public
+      REDIS_URL: redis://localhost:6379/1
+      SESSION_SECRET: ci-session-secret-not-for-production
+      MFA_ENCRYPTION_KEY: AgxNsNye3Zl22UFoP5at/h+kXqIlnnDFVPibhKwd0wI=
+      MFA_ISSUER_NAME: RHCM
+      WEB_BASE_URL: http://localhost:3000
+      APP_TIMEZONE: Asia/Kolkata
+      LOGIN_MAX_FAILED_ATTEMPTS: 5
+      LOGIN_LOCKOUT_MINUTES: 15
+      PASSWORD_RESET_TOKEN_TTL_MINUTES: 30
+      SEED_USER_PASSWORD: DevPass!2026
+      NODE_ENV: test
+      S3_ENDPOINT: http://localhost:9000
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY_ID: rhcm_minio
+      S3_SECRET_ACCESS_KEY: rhcm_minio_password
+      S3_BUCKET: rhcm-documents-ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "10.28.0"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared, database, and api packages
+        run: |
+          pnpm --filter @rhcm/shared build
+          pnpm --filter @rhcm/database generate
+          pnpm --filter @rhcm/database build
+          pnpm --filter @rhcm/api build
+
+      - name: Type-check the web app
+        run: pnpm --filter @rhcm/web build
+        env:
+          NEXT_PUBLIC_API_BASE_URL: http://localhost:4000
+
+      - name: Unit tests
+        run: pnpm --filter @rhcm/api test
+
+      - name: End-to-end tests
+        run: pnpm --filter @rhcm/api test:e2e

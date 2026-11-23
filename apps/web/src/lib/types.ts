@@ -489,4 +489,85 @@ export interface AuditLogRow {
   action: string;
   resourceType: string;
   resourceId: string | null;
+  beforeJson?: unknown;
+  afterJson?: unknown;
+  actor?: { id: string; email: string } | null;
+}
+
+// --- Documents & consent (Stage 6) -------------------------------------------
+
+export type DocumentScanStatus = "PENDING" | "CLEAN" | "INFECTED" | "ERROR";
+
+export interface PatientDocumentRow {
+  id: string;
+  patientId: string;
+  entityId: string;
+  visitId: string | null;
+  treatmentSessionId: string | null;
+  category: string;
+  storageKey: string;
+  originalFilename: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedById: string | null;
+  uploadedBy?: { id: string; email: string } | null;
+  uploadedAt: string;
+  scanStatus: DocumentScanStatus;
+  retentionUntil: string | null;
+  deletedAt: string | null;
+}
+
+export type ConsentType = "TREATMENT" | "DATA_SHARING" | "CROSS_ENTITY_IDENTITY_LINKING" | "PHOTO_VIDEO" | "MARKETING";
+
+export interface ConsentRecordRow {
+  id: string;
+  patientId: string;
+  entityId: string;
+  consentType: ConsentType;
+  granted: boolean;
+  grantedAt: string;
+  capturedById: string | null;
+  capturedBy?: { id: string; email: string } | null;
+  documentRef: string | null;
+  version: number;
+}
+
+// --- Reports (Stage 6) --------------------------------------------------------
+
+export interface CollectionsReport {
+  entityId?: string;
+  entityCode?: string;
+  total: string;
+  paymentCount: number;
+  byDay: Array<{ date: string; amount: string }>;
+  byMode: Array<{ mode: string; amount: string }>;
+}
+
+export interface OutstandingBalancesReport {
+  entityId?: string;
+  entityCode?: string;
+  totalOutstanding: string;
+  invoices: Array<{
+    invoiceId: string;
+    invoiceNumber: string;
+    invoiceDate: string;
+    patient: { id: string; fullName: string; uhid: string };
+    netTotal: string;
+    paidAmount: string;
+    balance: string;
+    status: string;
+  }>;
+}
+
+export interface DoctorProductionReport {
+  entityId?: string;
+  entityCode?: string;
+  rows: Array<{ doctorId: string | null; doctorName: string; amount: string; lineCount: number }>;
+}
+
+export interface VisitFootfallReport {
+  entityId?: string;
+  entityCode?: string;
+  totalVisits: number;
+  byDay: Array<{ date: string; total: number; completed: number; cancelled: number }>;
 }

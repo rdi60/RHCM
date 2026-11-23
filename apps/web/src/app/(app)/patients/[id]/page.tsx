@@ -16,9 +16,11 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { TreatmentPlanCard } from "@/components/clinical/treatment-plan-card";
 import { BillingTab } from "@/components/billing/billing-tab";
+import { DocumentsSection } from "@/components/documents/documents-section";
+import { ConsentSection } from "@/components/documents/consent-section";
 import { cn } from "@/lib/utils";
 
-const TABS = ["Overview", "Visits", "Appointments", "Treatment Plans", "Billing"] as const;
+const TABS = ["Overview", "Visits", "Appointments", "Treatment Plans", "Billing", "Documents"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function PatientDashboardPage() {
@@ -81,7 +83,7 @@ export default function PatientDashboardPage() {
   }
 
   return (
-    <div className={cn("flex flex-col gap-6", tab === "Billing" ? "max-w-5xl" : "max-w-3xl")}>
+    <div className={cn("flex flex-col gap-6", tab === "Billing" || tab === "Documents" ? "max-w-5xl" : "max-w-3xl")}>
       <div className="flex items-center gap-3">
         <h1 className="text-2xl font-semibold">{patient.fullName}</h1>
         <Badge>{patient.uhid}</Badge>
@@ -102,13 +104,13 @@ export default function PatientDashboardPage() {
         </div>
       ) : null}
 
-      <div className="flex gap-1 border-b border-border">
+      <div className="flex gap-1 overflow-x-auto border-b border-border">
         {TABS.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={cn(
-              "px-3 py-2 text-sm font-medium border-b-2 -mb-px",
+              "shrink-0 whitespace-nowrap px-3 py-2 text-sm font-medium border-b-2 -mb-px",
               tab === t ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >
@@ -236,6 +238,13 @@ export default function PatientDashboardPage() {
       )}
 
       {tab === "Billing" && <BillingTab patientId={params.id} />}
+
+      {tab === "Documents" && (
+        <div className="flex flex-col gap-4">
+          <DocumentsSection patientId={params.id} />
+          <ConsentSection patientId={params.id} />
+        </div>
+      )}
     </div>
   );
 }

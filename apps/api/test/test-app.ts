@@ -6,9 +6,14 @@ import { createClient } from "redis";
 import RedisStore from "connect-redis";
 import { AppModule } from "../src/app.module";
 import { HttpExceptionFilter } from "../src/common/filters/http-exception.filter";
+import { StorageService } from "../src/storage/storage.service";
+import { FakeStorageService } from "./fakes/fake-storage.service";
 
 export async function createTestApp(): Promise<INestApplication> {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(StorageService)
+    .useClass(FakeStorageService)
+    .compile();
   const app = moduleRef.createNestApplication();
   const config = app.get(ConfigService);
 

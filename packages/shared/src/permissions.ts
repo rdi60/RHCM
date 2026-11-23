@@ -21,6 +21,7 @@ export const PERMISSIONS = {
   PATIENT_REGISTER: "patient.register",
   PATIENT_CHECK_IN: "patient.check_in",
   PATIENT_CROSS_ENTITY_LINK: "patient.cross_entity_link",
+  PATIENT_CONSENT_MANAGE: "patient.consent_manage",
 
   // Scheduling (Stage 3+)
   APPOINTMENT_READ: "appointment.read",
@@ -76,6 +77,7 @@ export const PERMISSION_CATALOG: Array<{
   { code: PERMISSIONS.PATIENT_REGISTER, category: "patient", description: "Create temporary/permanent patient registrations" },
   { code: PERMISSIONS.PATIENT_CHECK_IN, category: "patient", description: "Check in a patient / match to an existing UHID" },
   { code: PERMISSIONS.PATIENT_CROSS_ENTITY_LINK, category: "patient", description: "Link a patient identity across entities" },
+  { code: PERMISSIONS.PATIENT_CONSENT_MANAGE, category: "patient", description: "Record patient consent (treatment, photo/video, data sharing, marketing)" },
 
   { code: PERMISSIONS.APPOINTMENT_READ, category: "scheduling", description: "View appointment calendars" },
   { code: PERMISSIONS.APPOINTMENT_BOOK, category: "scheduling", description: "Book/reschedule/cancel appointments" },

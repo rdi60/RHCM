@@ -9,6 +9,7 @@ import {
   UserSearch,
   CalendarDays,
   Clock,
+  BarChart3,
   type LucideIcon,
 } from "lucide-react";
 
@@ -25,6 +26,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/patients", label: "Patients", icon: UserSearch, anyOf: [PERMISSIONS.PATIENT_READ, PERMISSIONS.PATIENT_REGISTER] },
   { href: "/appointments", label: "Appointments", icon: CalendarDays, anyOf: [PERMISSIONS.APPOINTMENT_READ] },
   { href: "/visits", label: "Waiting List", icon: Clock, anyOf: [PERMISSIONS.APPOINTMENT_READ] },
+  { href: "/reports", label: "Reports", icon: BarChart3, anyOf: [PERMISSIONS.REPORT_READ] },
   { href: "/admin/entities", label: "Entity Settings", icon: Building2, anyOf: [PERMISSIONS.ENTITY_SETTINGS_MANAGE, PERMISSIONS.RESOURCE_MANAGE] },
   { href: "/admin/roles", label: "Roles & Permissions", icon: ShieldCheck, anyOf: [PERMISSIONS.ROLE_MANAGE] },
   { href: "/admin/users", label: "Users", icon: Users, anyOf: [PERMISSIONS.USER_MANAGE] },

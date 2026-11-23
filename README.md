@@ -65,8 +65,36 @@ workflow (`REQUESTED → APPROVED → COMPLETED`/`REJECTED`) requiring
 cap against the original payment's amount. See `packages/database/prisma/
 schema.prisma`'s `Invoice`/`PaymentAllocation` doc comments and the
 `20261122170000_stage5_billing` migration's hand-written SQL for the full
-enforcement design. Later stages (documents, reporting) build on this
-foundation — see `docs/ARCHITECTURE.md` Section 9 for the full plan.
+enforcement design.
+
+**Stage 6** (this state of the repo) adds documents, consent, reporting,
+audit polish, responsive QA, and deployment. A new **Documents** tab on
+the Patient Dashboard covers private file storage — upload goes through a
+short-lived presigned URL straight to S3-compatible object storage (MinIO
+locally; see `StorageService`), never a public bucket URL, with a
+confirm step where a real deployment's async virus-scan result would
+flip `scanStatus` (`PENDING → CLEAN`/`INFECTED`/`ERROR`) before a
+download link is ever issued, and soft-delete that keeps the row (and
+the object, per retention policy) rather than hard-deleting. The same
+tab's **Consent Records** section exposes the existing append-only
+`ConsentRecord` model for any consent type (treatment, photo/video, data
+sharing, marketing — not just the cross-entity-link consent Stage 2
+already used it for), versioned the same way clinical notes are. A new
+**Reports** page covers collections (by day/mode), outstanding balances,
+doctor production, and patient footfall, each entity-scoped by default
+with an explicit combined/cross-entity variant (gated by
+`report.cross_entity`) that unions per-entity results rather than ever
+running an unscoped query, per `docs/ARCHITECTURE.md` Section 6.6. The
+Audit Log page gained filters (action/resource type/actor/date range)
+and an expandable before/after diff. A responsive-QA pass (Playwright at
+desktop/tablet/mobile widths) found and fixed a real bug — the Patient
+Dashboard's tab bar forced horizontal scroll on the whole page on narrow
+viewports once it grew to 6 tabs; it now scrolls independently of the
+page. Finally, this stage adds production Dockerfiles for both apps,
+`docker-compose.prod.yml`, a CI workflow, and the Deployment section
+below.
+
+See `docs/ARCHITECTURE.md` Section 9 for the original 6-stage plan.
 
 ## Stack
 
@@ -202,6 +230,14 @@ payment. For Priya Sharma (second record, Clinic): an `ISSUED` invoice
 that status isn't easy to forget to demo. Open `/patients/<Ravi's id>` →
 **Billing** tab to see it end to end.
 
+### Synthetic seed documents & consent
+
+Ravi Kumar also has one `CLEAN` X-ray document (`tooth46-iopa.png`,
+category `xray` — note this is seed metadata only, with no real bytes
+behind its storage key, so its Download link in the UI won't resolve to
+an actual file) and a `TREATMENT` consent record (v1, granted). Open
+`/patients/<Ravi's id>` → **Documents** tab to see both.
+
 ### First production Super Administrator
 
 Never seed synthetic data in production. Instead:
@@ -323,6 +359,130 @@ real database and a real NestJS instance:
 - RBAC denials for every billing action (`estimate.create`,
   `invoice.create`/`invoice.void`, `payment.receive`/`payment.allocate`,
   `refund.approve`) and entity-scoped 404s on estimates/invoices/receipts
+
+`apps/api/test/documents.e2e-spec.ts` (Stage 6) additionally covers:
+
+- the full upload lifecycle: requesting an upload URL, confirming it
+  (`PENDING → CLEAN`), listing it, and that a download URL is refused
+  until it's confirmed CLEAN
+- soft-delete removes a document from its patient's list and 404s a
+  direct fetch, without needing `document.delete` to see the list itself
+- the server-side upload size cap rejects an oversized file before a
+  storage URL is ever minted
+- RBAC denials for `document.upload`/`document.delete`, and an
+  entity-scoped 404 on a document fetched from the wrong entity
+- consent capture is append-only and versioned: a second capture of the
+  same type for the same patient creates v2 rather than overwriting v1,
+  and denies without `patient.consent_manage`
+
+`apps/api/test/reports.e2e-spec.ts` (Stage 6) additionally covers:
+
+- a freshly recorded payment shows up in that day's collections
+  breakdown by exact amount and mode
+- entity isolation: a payment recorded in one entity never appears in
+  another entity's collections report
+- outstanding balances lists a freshly created unpaid invoice with its
+  exact balance; doctor production attributes an invoiced line to the
+  correct (freshly created, so isolated from any other data) doctor
+- the cross-entity report variant is denied without
+  `report.cross_entity`, and for a caller who has it, unions results
+  across every entity they can access
+- audit log filtering by action substring, resource type, and date range
+  all narrow correctly, and the endpoint itself is denied without
+  `audit_log.read`
+
+(Stage 6 also fixed a pre-existing test-suite flakiness bug found while
+adding its own spec files — `apps/api/test/auth-rbac.e2e-spec.ts`'s own
+lockout and password-reset tests were permanently mutating two shared
+seeded accounts other spec files log in as; those tests now restore the
+account afterward, and `test:e2e` runs with `--runInBand` so spec files
+never race each other's use of shared fixtures.)
+
+## Deployment
+
+Production Dockerfiles for both apps (`apps/api/Dockerfile`,
+`apps/web/Dockerfile`) and a self-contained stack
+(`docker-compose.prod.yml`: Postgres, Redis, MinIO, the API, and the web
+app) are included. A real deployment would more likely swap
+Postgres/Redis/MinIO for managed equivalents (RDS/Cloud SQL,
+ElastiCache/Memorystore, S3) and keep only the `api`/`web` services from
+that compose file behind your own reverse proxy/TLS termination (nginx,
+Caddy, your cloud LB) — neither Dockerfile nor compose file does TLS
+itself.
+
+Both images are multi-stage, non-root, and built via `pnpm deploy` (API)
+/ Next's `output: "standalone"` (web) so the shipped image carries only
+production `node_modules` and build output — no source, tests, or `.env`
+files. The build context for both is the **monorepo root** (not
+`apps/api`/`apps/web`), since each needs to resolve its `@rhcm/shared`
+(and, for the API, `@rhcm/database`) workspace dependencies:
+
+```bash
+docker build -f apps/api/Dockerfile -t rhcm-api .
+docker build -f apps/web/Dockerfile \
+  --build-arg NEXT_PUBLIC_API_BASE_URL=https://api.yourclinic.example \
+  -t rhcm-web .
+```
+
+`NEXT_PUBLIC_API_BASE_URL` is baked into the web app's client bundle at
+**build** time (not read at container start), so it must be the real
+public API URL before you build, not patched in afterward via an
+environment variable on the running container.
+
+### Running the stack
+
+```bash
+cp .env.prod.example .env.prod
+# fill in every value — POSTGRES_PASSWORD, SESSION_SECRET,
+# MFA_ENCRYPTION_KEY, WEB_BASE_URL, NEXT_PUBLIC_API_BASE_URL,
+# S3_ACCESS_KEY_ID/S3_SECRET_ACCESS_KEY — and never commit it.
+
+docker compose -f docker-compose.prod.yml --env-file .env.prod build
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+```
+
+Then, from a machine or CI runner with the repo checked out and
+`DATABASE_URL` pointed at the production database (migrations don't run
+from inside the slim runtime image — `prisma`, the CLI, is a
+devDependency intentionally left out of it):
+
+```bash
+DATABASE_URL="postgresql://rhcm:<password>@<host>:5432/rhcm?schema=public" \
+  pnpm --filter @rhcm/database migrate:deploy
+```
+
+Then create the first production Super Administrator (never run
+`db:seed` against production — it refuses to run when
+`NODE_ENV=production` anyway):
+
+```bash
+DATABASE_URL="..." BOOTSTRAP_ADMIN_EMAIL="admin@yourclinic.example" \
+  pnpm --filter @rhcm/database bootstrap:admin
+```
+
+### Health & readiness
+
+- `GET /entities` on the API (any `@Public()` route would do) is a
+  reasonable liveness check once a session cookie isn't required — there
+  is no dedicated `/health` endpoint yet.
+- The `postgres`/`redis`/`minio` services in `docker-compose.prod.yml`
+  carry Docker healthchecks already; `api`/`web` wait on those via
+  `depends_on: condition: service_healthy`.
+
+### Backups
+
+- **Postgres** is the system of record for everything except file
+  bytes — back it up like any production database (`pg_dump`/continuous
+  WAL archiving/your managed provider's snapshots). Losing it loses
+  patients, billing history, and the audit log.
+- **Object storage** (MinIO/S3) holds the actual document bytes;
+  `patient_documents.storage_key` is meaningless without them. Back up
+  the bucket (MinIO supports `mc mirror`; S3 has versioning/replication)
+  on the same cadence as the database, and test a restore occasionally —
+  a restored database with no matching objects leaves every "Download"
+  link broken.
+- **Redis** holds only sessions — safe to lose (users are logged out) and
+  does not need backing up.
 
 ## Project layout
 

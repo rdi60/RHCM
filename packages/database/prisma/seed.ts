@@ -798,6 +798,45 @@ async function main() {
 
   console.log(`Seeded billing: 1 tax profile, 1 ACCEPTED estimate awaiting conversion, 1 fully-paid invoice (+credit note +refund), 1 partially-paid invoice.`);
 
+  // --- Documents & consent (Stage 6) ---------------------------------------
+
+  const existingDoc = await prisma.patientDocument.findFirst({ where: { patientId: ravi.id, category: "xray" } });
+  if (!existingDoc) {
+    await prisma.patientDocument.create({
+      data: {
+        patientId: ravi.id,
+        entityId: entities.CLINIC.id,
+        visitId: raviVisit.id,
+        category: "xray",
+        // Seed data only — no real bytes sit behind this key, so its
+        // download link in the UI won't actually resolve to a file; it
+        // exists to demonstrate the Documents tab's listing/metadata.
+        storageKey: `patients/${ravi.id}/seed-tooth46-iopa.png`,
+        originalFilename: "tooth46-iopa.png",
+        mimeType: "image/png",
+        sizeBytes: 182_340,
+        uploadedById: doctorUser.id,
+        scanStatus: "CLEAN",
+      },
+    });
+  }
+
+  const existingTreatmentConsent = await prisma.consentRecord.findFirst({ where: { patientId: ravi.id, consentType: "TREATMENT" } });
+  if (!existingTreatmentConsent) {
+    await prisma.consentRecord.create({
+      data: {
+        patientId: ravi.id,
+        entityId: entities.CLINIC.id,
+        consentType: "TREATMENT",
+        granted: true,
+        capturedById: doctorUser.id,
+        version: 1,
+      },
+    });
+  }
+
+  console.log("Seeded 1 sample patient document (X-ray) and 1 treatment consent record for Ravi Kumar.");
+
   console.log(`Seeded treatment catalog (${TREATMENT_CATALOG.length} procedures) and clinical history for ${ravi.fullName}.`);
 
   console.log(`Seeded synthetic patients (UHIDs: ${ravi.uhid}, ${priya1.uhid}, ${priya2.uhid}, ${arun.uhid}) and temp registrations (${checkedInReg.tempId} checked in, ${openReg.tempId} open).`);

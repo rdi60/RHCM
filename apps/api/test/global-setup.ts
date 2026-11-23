@@ -27,7 +27,7 @@ export default async function globalSetup() {
         treatment_session_assistants, clinical_notes, prescriptions,
         refunds, credit_notes, payment_allocations, receipts, payments,
         invoice_items, invoices, estimate_items, estimates,
-        entity_treatment_prices, tax_profiles
+        entity_treatment_prices, tax_profiles, patient_documents
       RESTART IDENTITY CASCADE;
     `,
   });
