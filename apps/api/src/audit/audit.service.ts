@@ -1,5 +1,8 @@
 import { Injectable } from "@nestjs/common";
+import type { PrismaClient, Prisma } from "@rhcm/database";
 import { PrismaService } from "../prisma/prisma.service";
+
+type Executor = PrismaClient | Prisma.TransactionClient;
 
 export interface AuditEntry {
   actorUserId?: string | null;
@@ -25,8 +28,16 @@ export interface AuditEntry {
 export class AuditService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async record(entry: AuditEntry): Promise<void> {
-    await this.prisma.client.auditLog.create({
+  /**
+   * `client` defaults to the top-level connection, but callers inside a
+   * `$transaction(async (tx) => ...)` block must pass `tx` here — otherwise
+   * this write grabs a second connection from the pool while the caller's
+   * transaction holds its own connection open and idle (needless
+   * connection-pool pressure under concurrency), and the audit row could
+   * end up persisted even if that surrounding transaction later rolls back.
+   */
+  async record(entry: AuditEntry, client: Executor = this.prisma.client): Promise<void> {
+    await client.auditLog.create({
       data: {
         actorUserId: entry.actorUserId ?? null,
         entityId: entry.entityId ?? null,

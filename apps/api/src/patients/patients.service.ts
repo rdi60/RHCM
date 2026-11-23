@@ -189,13 +189,16 @@ export class PatientsService {
               capturedById: actorUserId,
             },
           });
-          await this.audit.record({
-            actorUserId,
-            entityId: dto.entityId,
-            action: "patient.cross_entity_linked",
-            resourceType: "patient",
-            resourceId: patient.id,
-          });
+          await this.audit.record(
+            {
+              actorUserId,
+              entityId: dto.entityId,
+              action: "patient.cross_entity_linked",
+              resourceType: "patient",
+              resourceId: patient.id,
+            },
+            tx,
+          );
         }
 
         if (!hasLinkHere) {
@@ -215,14 +218,17 @@ export class PatientsService {
           },
           include: { entityLinks: true },
         });
-        await this.audit.record({
-          actorUserId,
-          entityId: dto.entityId,
-          action: "patient.created",
-          resourceType: "patient",
-          resourceId: patient.id,
-          after: { uhid: patient.uhid },
-        });
+        await this.audit.record(
+          {
+            actorUserId,
+            entityId: dto.entityId,
+            action: "patient.created",
+            resourceType: "patient",
+            resourceId: patient.id,
+            after: { uhid: patient.uhid },
+          },
+          tx,
+        );
       }
 
       const updatedReg = await tx.temporaryRegistration.update({
@@ -230,14 +236,17 @@ export class PatientsService {
         data: { status: "CHECKED_IN", matchedPatientId: patient.id },
       });
 
-      await this.audit.record({
-        actorUserId,
-        entityId: dto.entityId,
-        action: "patient.checked_in",
-        resourceType: "temporary_registration",
-        resourceId: tempRegId,
-        after: { patientId: patient.id },
-      });
+      await this.audit.record(
+        {
+          actorUserId,
+          entityId: dto.entityId,
+          action: "patient.checked_in",
+          resourceType: "temporary_registration",
+          resourceId: tempRegId,
+          after: { patientId: patient.id },
+        },
+        tx,
+      );
 
       let doctorId: string | null = reg.preferredDoctorId;
       let resourceId: string | null = null;

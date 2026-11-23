@@ -34,7 +34,11 @@ jobs:
           --health-retries 5
 
     env:
-      DATABASE_URL: postgresql://rhcm:rhcm_dev_password@localhost:5432/rhcm_test?schema=public
+      # connection_limit defaults to num_cpus*2+1, as low as 5 on this
+      # runner — not enough headroom for the e2e suite's own concurrency
+      # tests (8 parallel check-ins, 5 parallel appointment bookings/
+      # payment allocations), so it's set explicitly here.
+      DATABASE_URL: postgresql://rhcm:rhcm_dev_password@localhost:5432/rhcm_test?schema=public&connection_limit=20
       REDIS_URL: redis://localhost:6379/1
       SESSION_SECRET: ci-session-secret-not-for-production
       MFA_ENCRYPTION_KEY: AgxNsNye3Zl22UFoP5at/h+kXqIlnnDFVPibhKwd0wI=
