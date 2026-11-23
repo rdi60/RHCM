@@ -2,7 +2,6 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Stethoscope } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -61,9 +60,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center text-center">
-          <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Stethoscope className="h-6 w-6" />
-          </div>
+          <img src="/icons/icon-192.png" alt="" className="mb-2 h-14 w-14 rounded-xl shadow-subtle" />
           <CardTitle>RHCM</CardTitle>
           <CardDescription>Dental Clinic & Charity Trust Management</CardDescription>
         </CardHeader>

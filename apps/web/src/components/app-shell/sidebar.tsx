@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, ChevronRight, Stethoscope } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { NAV_ITEMS } from "./nav-items";
@@ -32,9 +32,7 @@ export function Sidebar({
       )}
     >
       <div className="flex h-14 items-center gap-2 px-4">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/15 text-sidebar-foreground">
-          <Stethoscope className="h-4 w-4" />
-        </div>
+        <img src="/icons/icon-192.png" alt="" className="h-8 w-8 shrink-0 rounded-sm shadow-subtle" />
         {!collapsed && <span className="truncate text-heading-section font-semibold text-sidebar-foreground">RHCM</span>}
       </div>
 
