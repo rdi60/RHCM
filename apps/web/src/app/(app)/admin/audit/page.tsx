@@ -38,7 +38,7 @@ export default function AuditPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold">Audit Log</h1>
+      <h1 className="text-heading-page">Audit Log</h1>
       <Card>
         <CardHeader>
           <CardTitle>Recent activity</CardTitle>
@@ -84,7 +84,7 @@ export default function AuditPage() {
                 {auditQuery.data?.map((row) => (
                   <Fragment key={row.id}>
                     <tr
-                      className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/50"
+                      className="cursor-pointer border-b border-border last:border-0 transition-colors hover:bg-lavender/50"
                       onClick={() => setExpandedId(expandedId === row.id ? null : row.id)}
                     >
                       <td className="py-2 whitespace-nowrap">{formatIstDateTime(row.occurredAt)}</td>
@@ -102,13 +102,13 @@ export default function AuditPage() {
                             {row.beforeJson != null && (
                               <div>
                                 <p className="mb-1 text-xs font-medium text-muted-foreground">Before</p>
-                                <pre className="overflow-x-auto rounded-md bg-background p-2 text-xs">{JSON.stringify(row.beforeJson, null, 2)}</pre>
+                                <pre className="overflow-x-auto rounded-button bg-background p-2 text-xs">{JSON.stringify(row.beforeJson, null, 2)}</pre>
                               </div>
                             )}
                             {row.afterJson != null && (
                               <div>
                                 <p className="mb-1 text-xs font-medium text-muted-foreground">After</p>
-                                <pre className="overflow-x-auto rounded-md bg-background p-2 text-xs">{JSON.stringify(row.afterJson, null, 2)}</pre>
+                                <pre className="overflow-x-auto rounded-button bg-background p-2 text-xs">{JSON.stringify(row.afterJson, null, 2)}</pre>
                               </div>
                             )}
                           </div>

@@ -8,11 +8,27 @@ import { useAuth } from "@/lib/auth-context";
 import { PERMISSIONS } from "@rhcm/shared";
 import { formatIstDateTime } from "@/lib/ist";
 import type { AppointmentRow, AppointmentStatus } from "@/lib/types";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { formatStatus } from "@/lib/utils";
 
-const NEXT_ACTIONS: Partial<Record<AppointmentStatus, { label: string; to: AppointmentStatus; variant?: "default" | "destructive" }[]>> = {
+const NEXT_ACTIONS: Partial<
+  Record<
+    AppointmentStatus,
+    {
+      label: string;
+      to: AppointmentStatus;
+      variant?: "default" | "destructive";
+    }[]
+  >
+> = {
   BOOKED: [
     { label: "Confirm", to: "CONFIRMED" },
     { label: "Mark arrived", to: "ARRIVED" },
@@ -40,39 +56,59 @@ export default function AppointmentDetailPage() {
 
   const apptQuery = useQuery({
     queryKey: ["appointment", params.id, selectedEntityId],
-    queryFn: () => api.get<AppointmentRow>(`/appointments/${params.id}?entityId=${selectedEntityId}`),
+    queryFn: () =>
+      api.get<AppointmentRow>(
+        `/appointments/${params.id}?entityId=${selectedEntityId}`,
+      ),
     enabled: Boolean(selectedEntityId),
   });
 
   const statusMutation = useMutation({
-    mutationFn: (status: AppointmentStatus) => api.patch(`/appointments/${params.id}/status`, { entityId: selectedEntityId, status }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["appointment", params.id, selectedEntityId] }),
-    onError: (err) => setError(err instanceof ApiError ? err.message : "Failed to update status"),
+    mutationFn: (status: AppointmentStatus) =>
+      api.patch(`/appointments/${params.id}/status`, {
+        entityId: selectedEntityId,
+        status,
+      }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ["appointment", params.id, selectedEntityId],
+      }),
+    onError: (err) =>
+      setError(
+        err instanceof ApiError ? err.message : "Failed to update status",
+      ),
   });
 
-  if (apptQuery.isLoading) return <p className="text-muted-foreground">Loading…</p>;
-  if (!apptQuery.data) return <p className="text-destructive">Appointment not found.</p>;
+  if (apptQuery.isLoading)
+    return <p className="text-muted-foreground">Loading…</p>;
+  if (!apptQuery.data)
+    return <p className="text-destructive">Appointment not found.</p>;
   const appt = apptQuery.data;
   const actions = canBook ? (NEXT_ACTIONS[appt.status] ?? []) : [];
 
   return (
     <div className="flex flex-col gap-6 max-w-xl">
       <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-semibold">{appt.patient?.fullName ?? appt.temporaryRegistration?.fullName}</h1>
-        <Badge>{appt.status}</Badge>
+        <h1 className="text-heading-page">
+          {appt.patient?.fullName ?? appt.temporaryRegistration?.fullName}
+        </h1>
+        <Badge>{formatStatus(appt.status)}</Badge>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>{formatIstDateTime(appt.startAt)}</CardTitle>
           <CardDescription>
-            {appt.doctor?.fullName} {appt.resource ? `· ${appt.resource.label ?? `${appt.resource.type} ${appt.resource.number}`}` : "· No chair/OT assigned"}
+            {appt.doctor?.fullName}{" "}
+            {appt.resource
+              ? `· ${appt.resource.label ?? `${appt.resource.type} ${appt.resource.number}`}`
+              : "· No chair/OT assigned"}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <dl className="grid grid-cols-2 gap-2 text-sm">
             <dt className="text-muted-foreground">Type</dt>
-            <dd>{appt.type}</dd>
+            <dd>{formatStatus(appt.type)}</dd>
             <dt className="text-muted-foreground">Reason</dt>
             <dd>{appt.procedureHint ?? "—"}</dd>
             {appt.isEmergencyOverride && (
@@ -103,7 +139,12 @@ export default function AppointmentDetailPage() {
         </CardContent>
       </Card>
 
-      <Button variant="ghost" size="sm" className="self-start" onClick={() => router.push("/appointments")}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="self-start"
+        onClick={() => router.push("/appointments")}
+      >
         Back to calendar
       </Button>
     </div>

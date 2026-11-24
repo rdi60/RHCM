@@ -8,8 +8,15 @@ import { useAuth } from "@/lib/auth-context";
 import { todayIstDateParam } from "@/lib/ist";
 import { formatIstDateTime } from "@/lib/ist";
 import type { AppointmentRow } from "@/lib/types";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatStatus } from "@/lib/utils";
 import { ViewTabs } from "../view-tabs";
 
 interface DoctorOption {
@@ -23,7 +30,10 @@ export default function AppointmentsDoctorPage() {
 
   const doctorsQuery = useQuery({
     queryKey: ["doctor-directory", selectedEntityId],
-    queryFn: () => api.get<DoctorOption[]>(`/doctors/directory?entityId=${selectedEntityId}`),
+    queryFn: () =>
+      api.get<DoctorOption[]>(
+        `/doctors/directory?entityId=${selectedEntityId}`,
+      ),
     enabled: Boolean(selectedEntityId),
   });
 
@@ -37,19 +47,22 @@ export default function AppointmentsDoctorPage() {
 
   const appointmentsQuery = useQuery({
     queryKey: ["appointments", selectedEntityId, doctorId, from, to],
-    queryFn: () => api.get<AppointmentRow[]>(`/appointments?entityId=${selectedEntityId}&doctorId=${doctorId}&from=${from}&to=${to}`),
+    queryFn: () =>
+      api.get<AppointmentRow[]>(
+        `/appointments?entityId=${selectedEntityId}&doctorId=${doctorId}&from=${from}&to=${to}`,
+      ),
     enabled: Boolean(selectedEntityId) && Boolean(doctorId),
   });
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold">Appointments</h1>
+      <h1 className="text-heading-page">Appointments</h1>
       <ViewTabs />
 
       <select
         value={doctorId}
         onChange={(e) => setDoctorId(e.target.value)}
-        className="h-10 w-64 rounded-md border border-border bg-background px-3 text-sm"
+        className="h-10 w-64 rounded-button border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50 px-3 text-sm"
       >
         <option value="">Select a doctor</option>
         {doctorsQuery.data?.map((d) => (
@@ -62,20 +75,40 @@ export default function AppointmentsDoctorPage() {
       <Card>
         <CardHeader>
           <CardTitle>Next 14 days</CardTitle>
-          <CardDescription>All upcoming appointments for the selected doctor, across chairs and OTs.</CardDescription>
+          <CardDescription>
+            All upcoming appointments for the selected doctor, across chairs and
+            OTs.
+          </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
-          {!doctorId && <p className="text-sm text-muted-foreground">Select a doctor to see their schedule.</p>}
-          {doctorId && appointmentsQuery.data?.length === 0 && <p className="text-sm text-muted-foreground">No appointments in this window.</p>}
+          {!doctorId && (
+            <p className="text-sm text-muted-foreground">
+              Select a doctor to see their schedule.
+            </p>
+          )}
+          {doctorId && appointmentsQuery.data?.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              No appointments in this window.
+            </p>
+          )}
           {appointmentsQuery.data?.map((a) => (
-            <Link key={a.id} href={`/appointments/${a.id}`} className="flex items-center justify-between rounded-md border border-border p-2 text-sm hover:bg-muted">
+            <Link
+              key={a.id}
+              href={`/appointments/${a.id}`}
+              className="flex items-center justify-between rounded-button border border-border p-2 text-sm transition-colors hover:bg-lavender"
+            >
               <div>
-                <p className="font-medium">{a.patient?.fullName ?? a.temporaryRegistration?.fullName}</p>
+                <p className="font-medium">
+                  {a.patient?.fullName ?? a.temporaryRegistration?.fullName}
+                </p>
                 <p className="text-muted-foreground">
-                  {formatIstDateTime(a.startAt)} {a.resource ? `· ${a.resource.label ?? `${a.resource.type} ${a.resource.number}`}` : ""}
+                  {formatIstDateTime(a.startAt)}{" "}
+                  {a.resource
+                    ? `· ${a.resource.label ?? `${a.resource.type} ${a.resource.number}`}`
+                    : ""}
                 </p>
               </div>
-              <Badge variant="muted">{a.status}</Badge>
+              <Badge variant="muted">{formatStatus(a.status)}</Badge>
             </Link>
           ))}
         </CardContent>

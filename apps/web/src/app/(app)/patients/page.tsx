@@ -46,7 +46,7 @@ export default function PatientsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Patients</h1>
+        <h1 className="text-heading-page">Patients</h1>
         {canRegister && (
           <Link href="/patients/register">
             <Button>
@@ -86,22 +86,22 @@ export default function PatientsPage() {
                   <Link
                     key={p.id}
                     href={`/patients/${p.id}`}
-                    className="flex items-center justify-between rounded-md border border-border p-3 hover:bg-muted"
+                    className="flex items-center justify-between rounded-button border border-border bg-card p-3 transition-colors hover:border-primary/20 hover:bg-lavender"
                   >
                     <div>
                       <p className="font-medium">{p.fullName}</p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-body text-muted-foreground">
                         {p.uhid} {p.phone ? `· ${p.phone}` : ""}
                       </p>
                     </div>
-                    <Badge variant="muted">Patient</Badge>
+                    <Badge variant="lilac">Patient</Badge>
                   </Link>
                 ))}
                 {searchQuery.data.temporaryRegistrations.map((r) => (
-                  <div key={r.id} className="flex items-center justify-between rounded-md border border-border p-3">
+                  <div key={r.id} className="flex items-center justify-between rounded-button border border-border bg-card p-3">
                     <div>
                       <p className="font-medium">{r.fullName}</p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-body text-muted-foreground">
                         {r.tempId} {r.phone ? `· ${r.phone}` : ""}
                       </p>
                     </div>
@@ -129,10 +129,10 @@ export default function PatientsPage() {
           <CardContent className="flex flex-col gap-2">
             {openRegsQuery.data?.length === 0 && <p className="text-sm text-muted-foreground">Nothing waiting.</p>}
             {openRegsQuery.data?.map((r) => (
-              <div key={r.id} className="flex items-center justify-between rounded-md border border-border p-3">
+              <div key={r.id} className="flex items-center justify-between rounded-button border border-border bg-card p-3">
                 <div>
                   <p className="font-medium">{r.fullName}</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-body text-muted-foreground">
                     {r.tempId}
                     {r.phone ? ` · ${r.phone}` : ""}
                     {r.visitReason ? ` · ${r.visitReason}` : ""}

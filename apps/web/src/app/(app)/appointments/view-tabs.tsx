@@ -14,7 +14,7 @@ const TABS = [
 export function ViewTabs() {
   const pathname = usePathname();
   return (
-    <div className="flex gap-1 border-b border-border">
+    <div className="flex w-fit gap-1 rounded-button border border-border bg-card p-1">
       {TABS.map((tab) => {
         const active = pathname === tab.href;
         return (
@@ -22,8 +22,8 @@ export function ViewTabs() {
             key={tab.href}
             href={tab.href}
             className={cn(
-              "px-3 py-2 text-sm font-medium border-b-2 -mb-px",
-              active ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground",
+              "shrink-0 whitespace-nowrap rounded-button px-3 py-1.5 text-sm font-medium transition-colors",
+              active ? "bg-peach text-peach-foreground shadow-subtle" : "text-muted-foreground hover:bg-lavender hover:text-foreground",
             )}
           >
             {tab.label}

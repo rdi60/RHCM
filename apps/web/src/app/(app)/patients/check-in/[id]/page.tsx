@@ -78,7 +78,7 @@ export default function CheckInPage() {
 
   return (
     <div className="flex flex-col gap-6 max-w-2xl">
-      <h1 className="text-2xl font-semibold">Check In</h1>
+      <h1 className="text-heading-page">Check In</h1>
 
       <Card>
         <CardHeader>

@@ -49,7 +49,7 @@ export function DentalChartEntryForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 rounded-md border border-border p-3">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3 rounded-button border border-border p-3">
       <p className="text-sm font-medium">Tooth {toothNumber}</p>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="condition">Condition</Label>

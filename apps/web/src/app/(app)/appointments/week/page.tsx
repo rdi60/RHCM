@@ -72,7 +72,7 @@ export default function AppointmentsWeekPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold">Appointments</h1>
+      <h1 className="text-heading-page">Appointments</h1>
       <ViewTabs />
 
       <div className="flex items-center gap-2">
@@ -109,7 +109,7 @@ export default function AppointmentsWeekPage() {
                     return (
                       <td key={d} className="p-2 text-center">
                         {count > 0 ? (
-                          <Link href={`/appointments?date=${d}`} className="inline-block rounded-md bg-primary/10 px-2 py-1 text-primary hover:bg-primary/20">
+                          <Link href={`/appointments?date=${d}`} className="inline-block rounded-button bg-primary/10 px-2 py-1 text-primary hover:bg-primary/20">
                             {count}
                           </Link>
                         ) : (
